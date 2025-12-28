@@ -120,22 +120,20 @@ pnpm start
 
 ## Locally development
 
-Dentro do mastra studio: http://localhost:4111/, temos vários agents e workflows. Esse mastra studio existem só para desenvolvimento, nosso front-end real irá chamar a API do mastra - que por curiosidade usa Hono JS.
+Dentro do mastra studio: http://localhost:4111/, temos vários agents. Esse mastra studio existe só para desenvolvimento, nosso front-end real irá chamar a API do mastra - que por curiosidade usa Hono JS.
 
-Um `agent` é como um micro serviço dentro do seu sistema (inúmeros micro serviços), eles podem ser usados e testados individualmente, exemplo:
+Um `agent` é como um micro serviço dentro do seu sistema (inúmeros micro serviços), eles podem ser usados e testados individualmente.
 
-- http://localhost:4111/agents/textQuestionAgent/chat
-
-Para conseguir conversar com uma LLM real, use a configuração do github (conforme feito anteriormente o setup do token).
+Para conseguir conversar com uma LLM real, use a configuração do GitHub Models (conforme feito anteriormente no setup do token).
 
 <img src="docs/model-selection.png" alt="Exemplo de seleção de model no mastra studio" width="600">
 
 > **OBS** tente usar sempre um modelo "nano", "mini" para consumir menos tokens em desenvolvimento :)
 
+### Agent disponível (MVP):
+- `nutritionAnalystAgent` - Analista nutricional com busca de alimentos e cálculos
+
 ## Documentação Adicional
 
-- Esse projeto aqui foi criado usando o template do mastra.ia chamado "chat with pdf": https://mastra.ai/templates/pdf-questions
-
-- Iremos substituir a maioria das coisas aqui, mas vale um pouco como estudo, ler o que temos antes de mudar tudo.
-
-Para mais detalhes sobre o template original e funcionalidades avançadas, consulte o [README-OLD.md](README-OLD.md).
+- Esse projeto foi criado usando o template do mastra.ai chamado "chat with pdf": https://mastra.ai/templates/pdf-questions
+- Template original preservado em [README-OLD.md](README-OLD.md) para referência
