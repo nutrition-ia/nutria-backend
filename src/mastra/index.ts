@@ -1,10 +1,13 @@
 import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
+import { nutritionAnalystAgent } from './agents/nutrition-analyst';
 
 export const mastra = new Mastra({
   workflows: {},
-  agents: {},
+  agents: {
+    nutritionAnalystAgent,
+  },
   storage: new LibSQLStore({
     url: ':memory:',
   }),
