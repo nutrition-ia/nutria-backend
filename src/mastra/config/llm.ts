@@ -13,11 +13,13 @@ export function getLLMModel(): string {
   // - 'github/gpt-4o-mini'
   // - 'github/claude-3.5-sonnet'
 
-  const model = process.env.MODEL || 'github/gpt-4o-mini';
+  const model = process.env.MODEL || 'github-models/openai/gpt-4.1-mini';
 
   if (!process.env.GITHUB_TOKEN) {
     console.warn('⚠️ GITHUB_TOKEN not set. Agent may not work properly.');
   }
+
+  console.log('🔍 Modelo configurado:', model);
 
   return model;
 }

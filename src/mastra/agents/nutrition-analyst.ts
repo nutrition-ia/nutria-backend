@@ -63,8 +63,16 @@ EXEMPLO DE BOA RESPOSTA:
 
 Ambas são excelentes fontes de proteína magra. O frango tem mais proteína por porção, enquanto o ovo oferece gorduras boas também. Qual você prefere?"
 
-Seja sempre prestativo, educado e focado em ajudar o usuário a fazer melhores escolhas alimentares!`,
-  model: getLLMModel(),
+Seja sempre prestativo, educado e focado em ajudar o usuário a fazer melhores escolhas alimentares!
+
+## Quando chamar uma tool
+
+### searchFoodCatalogTool
+Use esta tool quando o usuário perguntar sobre um alimento específico.
+
+### calculateNutritionTool
+Use esta tool quando o usuário perguntar sobre a nutrição de um alimento específico.
+`,
+  model: 'github-models/openai/gpt-4.1-mini',
   tools: [searchFoodCatalogTool, calculateNutritionTool],
-  temperature: agentDefaults.temperature,
 });
