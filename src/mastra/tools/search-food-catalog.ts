@@ -1,113 +1,89 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { searchFoods, type FoodItem } from '../clients/catalog-client';
+
+/**
+ * Transforma FoodItem da API para formato da tool
+ */
+const formatFoodItem = (food: FoodItem) => ({
+  id: food.id,
+  name: food.name,
+  category: food.category ?? 'Sem categoria',
+  portion: `${food.serving_size_g}${food.serving_unit ?? 'g'}`,
+  nutrition: {
+    calories: food.calorie_per_100g,
+    protein_g: food.protein_g_100g ?? 0,
+    carbs_g: food.carbs_g_100g ?? 0,
+    fat_g: food.fat_g_100g ?? 0,
+  },
+});
 
 /**
  * Tool para buscar alimentos no catálogo nutricional
- * VERSÃO MOCK - Retorna dados simulados enquanto a API real não está disponível
+ * Conecta com a Food Catalog API (FastAPI)
  */
 export const searchFoodCatalogTool = createTool({
   id: 'search-food-catalog',
-  description: 'Busca alimentos no catálogo nutricional por nome ou categoria. Retorna informações nutricionais básicas.',
+  description:
+    'Busca alimentos no catálogo nutricional por nome ou categoria. Retorna informações nutricionais básicas.',
   inputSchema: z.object({
-    query: z.string().describe('Termo de busca (nome do alimento ou categoria)'),
-    limit: z.number().optional().default(5).describe('Número máximo de resultados (padrão: 5)'),
+    query: z
+      .string()
+      .describe('Termo de busca (nome do alimento ou categoria)'),
+    limit: z
+      .number()
+      .optional()
+      .default(5)
+      .describe('Número máximo de resultados (padrão: 5)'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
-    foods: z.array(z.object({
-      id: z.string(),
-      name: z.string(),
-      category: z.string(),
-      portion: z.string(),
-      nutrition: z.object({
-        calories: z.number(),
-        protein_g: z.number(),
-        carbs_g: z.number(),
-        fat_g: z.number(),
-      }),
-    })),
+    foods: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        category: z.string(),
+        portion: z.string(),
+        nutrition: z.object({
+          calories: z.number(),
+          protein_g: z.number(),
+          carbs_g: z.number(),
+          fat_g: z.number(),
+        }),
+      })
+    ),
     count: z.number(),
+    error: z.string().optional(),
   }),
   execute: async ({ context }) => {
     const { query, limit = 5 } = context;
 
-    console.log(`🔍 Buscando alimentos: "${query}" (limite: ${limit})`);
+    console.log(`🔍 [Tool] Buscando alimentos: "${query}" (limite: ${limit})`);
 
-    // MOCK DATA - Dados simulados de alimentos comuns
-    const mockDatabase = [
-      {
-        id: 'food-001',
-        name: 'Banana',
-        category: 'Frutas',
-        portion: '100g',
-        nutrition: { calories: 89, protein_g: 1.1, carbs_g: 22.8, fat_g: 0.3 },
-      },
-      {
-        id: 'food-002',
-        name: 'Arroz Branco Cozido',
-        category: 'Cereais',
-        portion: '100g',
-        nutrition: { calories: 130, protein_g: 2.7, carbs_g: 28.2, fat_g: 0.3 },
-      },
-      {
-        id: 'food-003',
-        name: 'Peito de Frango Grelhado',
-        category: 'Proteínas',
-        portion: '100g',
-        nutrition: { calories: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6 },
-      },
-      {
-        id: 'food-004',
-        name: 'Brócolis Cozido',
-        category: 'Vegetais',
-        portion: '100g',
-        nutrition: { calories: 35, protein_g: 2.4, carbs_g: 7.2, fat_g: 0.4 },
-      },
-      {
-        id: 'food-005',
-        name: 'Ovo Cozido',
-        category: 'Proteínas',
-        portion: '1 unidade (50g)',
-        nutrition: { calories: 78, protein_g: 6.3, carbs_g: 0.6, fat_g: 5.3 },
-      },
-      {
-        id: 'food-006',
-        name: 'Maçã',
-        category: 'Frutas',
-        portion: '100g',
-        nutrition: { calories: 52, protein_g: 0.3, carbs_g: 13.8, fat_g: 0.2 },
-      },
-      {
-        id: 'food-007',
-        name: 'Batata Doce Cozida',
-        category: 'Tubérculos',
-        portion: '100g',
-        nutrition: { calories: 86, protein_g: 1.6, carbs_g: 20.1, fat_g: 0.1 },
-      },
-      {
-        id: 'food-008',
-        name: 'Aveia',
-        category: 'Cereais',
-        portion: '100g',
-        nutrition: { calories: 389, protein_g: 16.9, carbs_g: 66.3, fat_g: 6.9 },
-      },
-    ];
+    try {
+      const response = await searchFoods({ query, limit });
 
-    // Filtrar alimentos baseado na query (case-insensitive)
-    const queryLower = query.toLowerCase();
-    const results = mockDatabase
-      .filter(food =>
-        food.name.toLowerCase().includes(queryLower) ||
-        food.category.toLowerCase().includes(queryLower)
-      )
-      .slice(0, limit);
+      const foods = response.foods.map(formatFoodItem);
 
-    console.log(`✅ Encontrados ${results.length} alimentos`);
+      console.log(`✅ [Tool] Encontrados ${foods.length} alimentos`);
 
-    return {
-      success: true,
-      foods: results,
-      count: results.length,
-    };
+      return {
+        success: true,
+        foods,
+        count: foods.length,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+
+      console.error(`❌ [Tool] Erro na busca:`, errorMessage);
+
+      return {
+        success: false,
+        foods: [],
+        count: 0,
+        error: `Não foi possível buscar alimentos: ${errorMessage}`,
+      };
+    }
   },
 });
