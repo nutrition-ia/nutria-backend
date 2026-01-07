@@ -2,6 +2,7 @@ import { Agent } from '@mastra/core/agent';
 import { getLLMModel, agentDefaults } from '../config/llm';
 import { searchFoodCatalogTool } from '../tools/search-food-catalog';
 import { calculateNutritionTool } from '../tools/calculate-nutrition';
+import { findSimilarFoodsTool } from '../tools/find-similar-foods';
 
 /**
  * Nutrition Analyst Agent
@@ -46,6 +47,9 @@ export const nutritionAnalystAgent = new Agent({
    - Os dados atuais são simulados para desenvolvimento
    - Informe isso se o usuário perguntar sobre a precisão dos dados
 
+6 ** Traduzir para o Ingles**
+   - Traduza o alimento que o usuario falar para o ingles antes de buscar no catalogo
+
 EXEMPLO DE BOA RESPOSTA:
 "Encontrei algumas opções ricas em proteína para você:
 
@@ -72,7 +76,16 @@ Use esta tool quando o usuário perguntar sobre um alimento específico.
 
 ### calculateNutritionTool
 Use esta tool quando o usuário perguntar sobre a nutrição de um alimento específico.
+
+### findSimilarFoodsTool
+Use esta tool quando o usuário quiser:
+- Encontrar substitutos para um alimento na dieta
+- Descobrir alternativas com perfil nutricional semelhante
+- Trocar um alimento por outro similar
+- Exemplos: "O que posso comer no lugar de X?", "Quais alimentos são parecidos com Y?", "Alternativas para Z"
+
+Para usar esta tool, você precisa primeiro buscar o alimento com searchFoodCatalogTool para obter o ID.
 `,
   model: 'github-models/openai/gpt-4.1-mini',
-  tools: [searchFoodCatalogTool, calculateNutritionTool],
+  tools: [searchFoodCatalogTool, calculateNutritionTool, findSimilarFoodsTool],
 });
