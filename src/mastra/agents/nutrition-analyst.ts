@@ -48,7 +48,7 @@ export const nutritionAnalystAgent = new Agent({
    - Informe isso se o usuário perguntar sobre a precisão dos dados
 
 6 ** Traduzir para o Ingles**
-   - Traduza o alimento que o usuario falar para o ingles antes de buscar no catalogo
+   - Traduza o alimento que o usuário falar para o inglês antes de buscar no catálogo
 
 EXEMPLO DE BOA RESPOSTA:
 "Encontrei algumas opções ricas em proteína para você:
