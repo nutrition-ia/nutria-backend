@@ -83,6 +83,34 @@ export interface CalculateNutritionResponse {
   details: NutritionDetail[];
 }
 
+export interface SimilarFoodRequest {
+  food_id: string;
+  limit?: number;
+  same_category?: boolean;
+  tolerance?: number;
+}
+
+export interface SimilarFoodItem {
+  id: string;
+  name: string;
+  category: string | null;
+  calorie_per_100g: number | null;
+  protein_g_100g: number | null;
+  carbs_g_100g: number | null;
+  fat_g_100g: number | null;
+  fiber_g_100g: number | null;
+  similarity_score: number;
+  source: string;
+  is_verified: boolean;
+}
+
+export interface SimilarFoodsResponse {
+  success: boolean;
+  reference_food: FoodItem;
+  similar_foods: SimilarFoodItem[];
+  count: number;
+}
+
 export interface ClientConfig {
   baseUrl: string;
   timeout: number;
@@ -338,6 +366,43 @@ export const calculateNutrition = async (
 };
 
 /**
+ * Busca alimentos com perfil nutricional similar
+ *
+ * @example
+ * const result = await findSimilarFoods({
+ *   food_id: 'uuid-here',
+ *   limit: 10,
+ *   same_category: false,
+ *   tolerance: 0.3,
+ * });
+ */
+export const findSimilarFoods = async (
+  request: SimilarFoodRequest,
+  config = defaultConfig
+): Promise<SimilarFoodsResponse> => {
+  console.log(
+    `🔄 [CatalogClient] Buscando alimentos similares para: "${request.food_id}"`
+  );
+
+  const response = await postRequest<SimilarFoodsResponse>(
+    '/api/v1/foods/similar',
+    {
+      food_id: request.food_id,
+      limit: request.limit ?? 10,
+      same_category: request.same_category ?? false,
+      tolerance: request.tolerance ?? 0.3,
+    },
+    config
+  );
+
+  console.log(
+    `✅ [CatalogClient] Encontrados ${response.count} alimentos similares`
+  );
+
+  return response;
+};
+
+/**
  * Verifica se a API está disponível
  */
 export const healthCheck = async (config = defaultConfig): Promise<boolean> => {
@@ -366,6 +431,7 @@ export const createClient = (customConfig?: Partial<ClientConfig>) => {
   return {
     searchFoods: (request: SearchFoodsRequest) => searchFoods(request, config),
     calculateNutrition: (foods: NutritionItem[]) => calculateNutrition(foods, config),
+    findSimilarFoods: (request: SimilarFoodRequest) => findSimilarFoods(request, config),
     healthCheck: () => healthCheck(config),
     config,
   };
