@@ -1,6 +1,8 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { searchFoods, type FoodItem } from '../clients/catalog-client';
+import { searchFoodOutputSchema } from '../schemas/output';
+import { logger } from '../../utils/logger';
 
 /**
  * Transforma FoodItem da API para formato da tool
@@ -36,36 +38,18 @@ export const searchFoodCatalogTool = createTool({
       .default(5)
       .describe('Número máximo de resultados (padrão: 5)'),
   }),
-  outputSchema: z.object({
-    success: z.boolean(),
-    foods: z.array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        category: z.string(),
-        portion: z.string(),
-        nutrition: z.object({
-          calories: z.number(),
-          protein_g: z.number(),
-          carbs_g: z.number(),
-          fat_g: z.number(),
-        }),
-      })
-    ),
-    count: z.number(),
-    error: z.string().optional(),
-  }),
+  outputSchema: searchFoodOutputSchema,
   execute: async ({ context }) => {
     const { query, limit = 5 } = context;
 
-    console.log(`🔍 [Tool] Buscando alimentos: "${query}" (limite: ${limit})`);
+    logger.info(`🔍 [Tool] Buscando alimentos: "${query}" (limite: ${limit})`);
 
     try {
       const response = await searchFoods({ query, limit });
 
       const foods = response.foods.map(formatFoodItem);
 
-      console.log(`✅ [Tool] Encontrados ${foods.length} alimentos`);
+      logger.info(`✅ [Tool] Encontrados ${foods.length} alimentos`);
 
       return {
         success: true,
@@ -76,7 +60,7 @@ export const searchFoodCatalogTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
 
-      console.error(`❌ [Tool] Erro na busca:`, errorMessage);
+      logger.error(`❌ [Tool] Erro na busca:, ${errorMessage}`);
 
       return {
         success: false,

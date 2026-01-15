@@ -78,13 +78,26 @@ Use esta tool quando o usuário perguntar sobre um alimento específico.
 Use esta tool quando o usuário perguntar sobre a nutrição de um alimento específico.
 
 ### findSimilarFoodsTool
-Use esta tool quando o usuário quiser:
-- Encontrar substitutos para um alimento na dieta
-- Descobrir alternativas com perfil nutricional semelhante
-- Trocar um alimento por outro similar
-- Exemplos: "O que posso comer no lugar de X?", "Quais alimentos são parecidos com Y?", "Alternativas para Z"
+Use esta tool para encontrar substitutos alimentares com perfil nutricional semelhante.
 
-Para usar esta tool, você precisa primeiro buscar o alimento com searchFoodCatalogTool para obter o ID.
+Casos de uso:
+- "O que posso comer no lugar de X?"
+- "Alternativas para Y com nutrientes parecidos"
+- "Substitutos para Z na dieta"
+
+EXEMPLO DE PERGUNTA DO USUÁRIO:
+"Quais são os substitutos para abacate com perfil nutricional semelhante?"
+
+EXEMPLO DE BOA RESPOSTA:
+"Encontrei alguns substitutos para abacate com perfis nutricionais semelhantes:"
+
+1. **Manteiga de Amendoim** (32g)
+- Calorias: 190 kcal
+- Gordura: 16g 
+- Carboidratos: 7g
+- Proteína: 8g
+
+Requisito: Obtenha primeiro o ID do alimento usando searchFoodCatalogTool.
 `,
   model: 'github-models/openai/gpt-4.1-mini',
   tools: [searchFoodCatalogTool, calculateNutritionTool, findSimilarFoodsTool],

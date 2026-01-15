@@ -4,6 +4,8 @@ import {
   calculateNutrition,
   type NutritionDetail,
 } from '../clients/catalog-client';
+import { calculateNutritionOutputSchema } from '../schemas/output';
+import { logger } from '../../utils/logger';
 
 /**
  * Transforma NutritionDetail da API para formato da tool
@@ -36,31 +38,11 @@ export const calculateNutritionTool = createTool({
       )
       .describe('Lista de alimentos com quantidades'),
   }),
-  outputSchema: z.object({
-    success: z.boolean(),
-    total: z.object({
-      calories: z.number(),
-      protein_g: z.number(),
-      carbs_g: z.number(),
-      fat_g: z.number(),
-    }),
-    details: z.array(
-      z.object({
-        foodId: z.string(),
-        foodName: z.string(),
-        quantity_g: z.number(),
-        calories: z.number(),
-        protein_g: z.number(),
-        carbs_g: z.number(),
-        fat_g: z.number(),
-      })
-    ),
-    error: z.string().optional(),
-  }),
+  outputSchema: calculateNutritionOutputSchema,
   execute: async ({ context }) => {
     const { foods } = context;
 
-    console.log(`🧮 [Tool] Calculando nutrição para ${foods.length} alimentos`);
+    logger.info(`🧮 [Tool] Calculando nutrição para ${foods.length} alimentos`);
 
     try {
       // Transforma formato da tool para formato da API
@@ -73,7 +55,7 @@ export const calculateNutritionTool = createTool({
 
       const details = response.details.map(formatNutritionDetail);
 
-      console.log(`✅ [Tool] Total calculado: ${response.total.calories} kcal`);
+      logger.info(`✅ [Tool] Total calculado: ${response.total.calories} kcal`);
 
       return {
         success: true,
@@ -89,7 +71,7 @@ export const calculateNutritionTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
 
-      console.error(`❌ [Tool] Erro no cálculo:`, errorMessage);
+      logger.error(`❌ [Tool] Erro no cálculo:, ${errorMessage}`);
 
       return {
         success: false,

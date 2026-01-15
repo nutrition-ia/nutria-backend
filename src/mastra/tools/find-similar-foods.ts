@@ -1,6 +1,8 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { findSimilarFoods, type SimilarFoodItem } from '../clients/catalog-client';
+import { findSimilarOutputSchema } from '../schemas/output';
+import { logger } from '../../utils/logger';
 
 /**
  * Transforma SimilarFoodItem da API para formato da tool
@@ -50,42 +52,11 @@ export const findSimilarFoodsTool = createTool({
       .default(0.3)
       .describe('Tolerância de diferença nutricional (0.3 = 30% de diferença permitida)'),
   }),
-  outputSchema: z.object({
-    success: z.boolean(),
-    referenceFood: z.object({
-      id: z.string(),
-      name: z.string(),
-      category: z.string(),
-      nutrition: z.object({
-        calories: z.number(),
-        protein_g: z.number(),
-        carbs_g: z.number(),
-        fat_g: z.number(),
-      }),
-    }),
-    similarFoods: z.array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        category: z.string(),
-        nutrition: z.object({
-          calories: z.number(),
-          protein_g: z.number(),
-          carbs_g: z.number(),
-          fat_g: z.number(),
-          fiber_g: z.number(),
-        }),
-        similarity_score: z.number(),
-        similarity_percent: z.number(),
-      })
-    ),
-    count: z.number(),
-    error: z.string().optional(),
-  }),
+  outputSchema: findSimilarOutputSchema,
   execute: async ({ context }) => {
     const { foodId, limit = 10, sameCategory = false, tolerance = 0.3 } = context;
 
-    console.log(`🔄 [Tool] Buscando alimentos similares ao ID: "${foodId}"`);
+    logger.info(`🔄 [Tool] Buscando alimentos similares ao ID: "${foodId}"`);
 
     try {
       const response = await findSimilarFoods({
@@ -109,7 +80,7 @@ export const findSimilarFoodsTool = createTool({
 
       const similarFoods = response.similar_foods.map(formatSimilarFood);
 
-      console.log(`✅ [Tool] Encontrados ${similarFoods.length} alimentos similares`);
+      logger.info(`✅ [Tool] Encontrados ${similarFoods.length} alimentos similares`);
 
       return {
         success: true,
@@ -121,7 +92,7 @@ export const findSimilarFoodsTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
 
-      console.error(`❌ [Tool] Erro na busca de similares:`, errorMessage);
+      logger.error(`❌ [Tool] Erro na busca de similares:, ${errorMessage}`);
 
       return {
         success: false,
