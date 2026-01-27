@@ -8,17 +8,45 @@
  * - Sem classes
  */
 
-import { env } from '../config/env';
+import { env } from "../config/env";
 
 // ============================================
 // TIPOS
 // ============================================
 
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  name: string;
+  age: number;
+  weight_kg?: number;
+  height_cm?: number;
+  activity_level?: "weight_gain" | "weight_loss" | "mantain";
+  diet_goal?: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  dietary_restrictions?: string[];
+  allergies?: string[];
+  disliked_foods?: string[];
+  preferred_cousines?: string[];
+}
+
+export interface MealPlan {
+  id: string;
+  user_id: string;
+  plan_name: string;
+  description: string;
+  daily_calories: number;
+  daily_protein_g: number;
+  daily_fat_g: number;
+  daily_carbs_g: number;
+  created_by: string;
+  meals: Record<string, unknown>;
+}
+
 export interface SearchFilters {
   category?: string;
   min_protein?: number;
   max_calories?: number;
-  source?: 'usda' | 'taco' | 'custom';
+  source?: "usda" | "taco" | "custom";
   verified_only?: boolean;
 }
 
@@ -111,6 +139,46 @@ export interface SimilarFoodsResponse {
   count: number;
 }
 
+export interface RecommendationRequest {
+  user_id: string;
+  limit?: number;
+  category?: string;
+}
+
+export interface RecommendedFoodItem {
+  id: string;
+  name: string;
+  category: string | null;
+  serving_size_g: number;
+  serving_unit: string;
+  calorie_per_100g: number | null;
+  source: string;
+  is_verified: boolean;
+  protein_g_100g: number | null;
+  carbs_g_100g: number | null;
+  fat_g_100g: number | null;
+}
+
+export interface RecommendationFiltersApplied {
+  dietary_restrictions: string[];
+  allergies: string[];
+  disliked_foods: string[];
+}
+
+export interface RecommendationResponse {
+  success: boolean;
+  foods: RecommendedFoodItem[];
+  count: number;
+  filters_applied: RecommendationFiltersApplied;
+}
+
+export interface UserFiltersResponse {
+  user_id: string;
+  dietary_restrictions: string[];
+  allergies: string[];
+  disliked_foods: string[];
+}
+
 export interface ClientConfig {
   baseUrl: string;
   timeout: number;
@@ -131,7 +199,9 @@ export interface ApiError {
 /**
  * Cria configuração do client com valores default
  */
-export const createConfig = (overrides?: Partial<ClientConfig>): ClientConfig => ({
+export const createConfig = (
+  overrides?: Partial<ClientConfig>,
+): ClientConfig => ({
   baseUrl: env.CATALOG_API_URL,
   timeout: env.CATALOG_API_TIMEOUT,
   maxRetries: env.CATALOG_API_RETRY_ATTEMPTS,
@@ -161,16 +231,16 @@ const isRetryableError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
 
   const retryablePatterns = [
-    'AbortError',
-    'TimeoutError',
-    'fetch failed',
-    'network',
-    'ECONNREFUSED',
+    "AbortError",
+    "TimeoutError",
+    "fetch failed",
+    "network",
+    "ECONNREFUSED",
   ];
 
   return retryablePatterns.some(
-    pattern =>
-      error.name.includes(pattern) || error.message.includes(pattern)
+    (pattern) =>
+      error.name.includes(pattern) || error.message.includes(pattern),
   );
 };
 
@@ -180,7 +250,7 @@ const isRetryableError = (error: unknown): boolean => {
 const createApiError = (
   message: string,
   statusCode?: number,
-  isRetryable = false
+  isRetryable = false,
 ): ApiError => ({
   message,
   statusCode,
@@ -191,7 +261,7 @@ const createApiError = (
  * Delay assíncrono
  */
 const sleep = (ms: number): Promise<void> =>
-  new Promise(resolve => setTimeout(resolve, ms));
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Calcula delay com exponential backoff
@@ -209,13 +279,15 @@ const calculateBackoff = (attempt: number, baseDelay: number): number =>
 const executeRequest = async <T>(
   url: string,
   options: RequestInit,
-  timeout: number
-): Promise<{ success: true; data: T } | { success: false; error: ApiError }> => {
+  timeout: number,
+): Promise<
+  { success: true; data: T } | { success: false; error: ApiError }
+> => {
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       },
       signal: AbortSignal.timeout(timeout),
@@ -228,7 +300,7 @@ const executeRequest = async <T>(
         error: createApiError(
           `API retornou status ${response.status}: ${errorBody}`,
           response.status,
-          isRetryableStatus(response.status)
+          isRetryableStatus(response.status),
         ),
       };
     }
@@ -239,9 +311,9 @@ const executeRequest = async <T>(
     return {
       success: false,
       error: createApiError(
-        error instanceof Error ? error.message : 'Erro desconhecido',
+        error instanceof Error ? error.message : "Erro desconhecido",
         undefined,
-        isRetryableError(error)
+        isRetryableError(error),
       ),
     };
   }
@@ -254,7 +326,7 @@ const executeWithRetry = async <T>(
   url: string,
   options: RequestInit,
   config: ClientConfig,
-  attempt = 1
+  attempt = 1,
 ): Promise<T> => {
   const result = await executeRequest<T>(url, options, config.timeout);
 
@@ -267,12 +339,12 @@ const executeWithRetry = async <T>(
 
   console.warn(
     `⚠️ [CatalogClient] Tentativa ${attempt}/${config.maxRetries} falhou:`,
-    error.message
+    error.message,
   );
 
   if (isLastAttempt || !error.isRetryable) {
     throw new Error(
-      `Falha ao conectar com Catalog API após ${attempt} tentativa(s): ${error.message}`
+      `Falha ao conectar com Catalog API após ${attempt} tentativa(s): ${error.message}`,
     );
   }
 
@@ -290,17 +362,17 @@ const executeWithRetry = async <T>(
 const postRequest = <T>(
   endpoint: string,
   body: unknown,
-  config: ClientConfig
+  config: ClientConfig,
 ): Promise<T> => {
   const url = `${config.baseUrl}${endpoint}`;
 
   return executeWithRetry<T>(
     url,
     {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(body),
     },
-    config
+    config,
   );
 };
 
@@ -316,18 +388,18 @@ const postRequest = <T>(
  */
 export const searchFoods = async (
   request: SearchFoodsRequest,
-  config = defaultConfig
+  config = defaultConfig,
 ): Promise<SearchFoodsResponse> => {
   console.log(`🔍 [CatalogClient] Buscando alimentos: "${request.query}"`);
 
   const response = await postRequest<SearchFoodsResponse>(
-    '/api/v1/foods/search',
+    "/api/v1/foods/search",
     {
       query: request.query,
       limit: request.limit ?? 10,
       filters: request.filters ?? {},
     },
-    config
+    config,
   );
 
   console.log(`✅ [CatalogClient] Encontrados ${response.count} alimentos`);
@@ -346,20 +418,20 @@ export const searchFoods = async (
  */
 export const calculateNutrition = async (
   foods: NutritionItem[],
-  config = defaultConfig
+  config = defaultConfig,
 ): Promise<CalculateNutritionResponse> => {
   console.log(
-    `🧮 [CatalogClient] Calculando nutrição para ${foods.length} alimentos`
+    `🧮 [CatalogClient] Calculando nutrição para ${foods.length} alimentos`,
   );
 
   const response = await postRequest<CalculateNutritionResponse>(
-    '/api/v1/nutrition/calculate',
+    "/api/v1/nutrition/calculate",
     { foods },
-    config
+    config,
   );
 
   console.log(
-    `✅ [CatalogClient] Total calculado: ${response.total.calories} kcal`
+    `✅ [CatalogClient] Total calculado: ${response.total.calories} kcal`,
   );
 
   return response;
@@ -378,26 +450,59 @@ export const calculateNutrition = async (
  */
 export const findSimilarFoods = async (
   request: SimilarFoodRequest,
-  config = defaultConfig
+  config = defaultConfig,
 ): Promise<SimilarFoodsResponse> => {
   console.log(
-    `🔄 [CatalogClient] Buscando alimentos similares para: "${request.food_id}"`
+    `🔄 [CatalogClient] Buscando alimentos similares para: "${request.food_id}"`,
   );
 
   const response = await postRequest<SimilarFoodsResponse>(
-    '/api/v1/foods/similar',
+    "/api/v1/foods/similar",
     {
       food_id: request.food_id,
       limit: request.limit ?? 10,
       same_category: request.same_category ?? false,
       tolerance: request.tolerance ?? 0.3,
     },
-    config
+    config,
   );
 
   console.log(
-    `✅ [CatalogClient] Encontrados ${response.count} alimentos similares`
+    `✅ [CatalogClient] Encontrados ${response.count} alimentos similares`,
   );
+
+  return response;
+};
+
+/**
+ * Busca recomendações personalizadas de alimentos para um usuário
+ *
+ * @example
+ * const result = await getRecommendations({
+ *   user_id: 'uuid-here',
+ *   limit: 20,
+ *   category: 'protein',
+ * });
+ */
+export const getRecommendations = async (
+  request: RecommendationRequest,
+  config = defaultConfig,
+): Promise<RecommendationResponse> => {
+  console.log(
+    `🎯 [CatalogClient] Buscando recomendações para usuário: "${request.user_id}"`,
+  );
+
+  const response = await postRequest<RecommendationResponse>(
+    "/api/v1/recommendations",
+    {
+      user_id: request.user_id,
+      limit: request.limit ?? 50,
+      ...(request.category && { category: request.category }),
+    },
+    config,
+  );
+
+  console.log(`✅ [CatalogClient] Encontradas ${response.count} recomendações`);
 
   return response;
 };
@@ -408,7 +513,7 @@ export const findSimilarFoods = async (
 export const healthCheck = async (config = defaultConfig): Promise<boolean> => {
   try {
     const response = await fetch(`${config.baseUrl}/health`, {
-      method: 'GET',
+      method: "GET",
       signal: AbortSignal.timeout(config.timeout),
     });
     return response.ok;
@@ -430,8 +535,12 @@ export const createClient = (customConfig?: Partial<ClientConfig>) => {
 
   return {
     searchFoods: (request: SearchFoodsRequest) => searchFoods(request, config),
-    calculateNutrition: (foods: NutritionItem[]) => calculateNutrition(foods, config),
-    findSimilarFoods: (request: SimilarFoodRequest) => findSimilarFoods(request, config),
+    calculateNutrition: (foods: NutritionItem[]) =>
+      calculateNutrition(foods, config),
+    findSimilarFoods: (request: SimilarFoodRequest) =>
+      findSimilarFoods(request, config),
+    getRecommendations: (request: RecommendationRequest) =>
+      getRecommendations(request, config),
     healthCheck: () => healthCheck(config),
     config,
   };
