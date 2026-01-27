@@ -1,16 +1,18 @@
-import { Agent } from '@mastra/core/agent';
-import { getLLMModel, agentDefaults } from '../config/llm';
-import { searchFoodCatalogTool } from '../tools/search-food-catalog';
-import { calculateNutritionTool } from '../tools/calculate-nutrition';
-import { findSimilarFoodsTool } from '../tools/find-similar-foods';
+import { Agent } from "@mastra/core/agent";
+import { getLLMModel, agentDefaults } from "../config/llm";
+import { searchFoodCatalogTool } from "../tools/search-food-catalog";
+import { calculateNutritionTool } from "../tools/calculate-nutrition";
+import { findSimilarFoodsTool } from "../tools/find-similar-foods";
+import { recommendationTool } from "../tools/recommendation";
 
 /**
  * Nutrition Analyst Agent
  * Responsável por análise de alimentos e cálculos nutricionais
  */
 export const nutritionAnalystAgent = new Agent({
-  name: 'nutrition-analyst',
-  description: 'Agente especializado em análise nutricional e busca de alimentos',
+  name: "nutrition-analyst",
+  description:
+    "Agente especializado em análise nutricional e busca de alimentos",
   instructions: `Você é um nutricionista virtual especializado em análise de alimentos e cálculos nutricionais.
 
 🎯 SUAS RESPONSABILIDADES:
@@ -24,6 +26,8 @@ export const nutritionAnalystAgent = new Agent({
 1. **Uso de Tools:**
    - Use a tool "search-food-catalog" para buscar alimentos quando o usuário perguntar sobre comidas específicas
    - Use a tool "calculate-nutrition" quando precisar somar valores nutricionais de múltiplos alimentos
+   - Use a tool "recommendation"para obter recomendações personalizadas de alimentos baseadas no perfil do usuário.
+
    - Sempre explique os resultados das tools de forma clara
 
 2. **Comunicação:**
@@ -93,12 +97,33 @@ EXEMPLO DE BOA RESPOSTA:
 
 1. **Manteiga de Amendoim** (32g)
 - Calorias: 190 kcal
-- Gordura: 16g 
+- Gordura: 16g
 - Carboidratos: 7g
 - Proteína: 8g
 
 Requisito: Obtenha primeiro o ID do alimento usando searchFoodCatalogTool.
+
+### recommendationTool
+Use esta tool para obter recomendações personalizadas de alimentos baseadas no perfil do usuário.
+
+Casos de uso:
+- "O que você recomenda para mim?"
+- "Quais alimentos são adequados para minha dieta?"
+- "Me sugira alimentos ricos em proteína considerando minhas restrições"
+- "Recomendações de frutas para meu perfil"
+
+A tool considera automaticamente:
+- Restrições alimentares (vegetariano, vegano, sem glúten, etc.)
+- Alergias (amendoim, lactose, glúten, etc.)
+- Alimentos que o usuário não gosta
+
+Requisito: O usuário deve ter um perfil cadastrado com user_id.
 `,
-  model: 'github-models/openai/gpt-4.1-mini',
-  tools: [searchFoodCatalogTool, calculateNutritionTool, findSimilarFoodsTool],
+  model: "github-models/openai/gpt-4.1-mini",
+  tools: [
+    searchFoodCatalogTool,
+    calculateNutritionTool,
+    findSimilarFoodsTool,
+    recommendationTool,
+  ],
 });
