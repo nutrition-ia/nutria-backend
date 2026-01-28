@@ -12,8 +12,8 @@ import { recommendationTool } from "../tools/recommendation";
 export const nutritionAnalystAgent = new Agent({
   name: "nutrition-analyst",
   description:
-    "Agente especializado em análise nutricional e busca de alimentos",
-  instructions: `Você é um nutricionista virtual especializado em análise de alimentos e cálculos nutricionais.
+    "Agente especializado em análise nutricional, identificação de alimentos em imagens e busca de alimentos",
+  instructions: `Você é um nutricionista virtual especializado em análise de alimentos, identificação visual de alimentos e cálculos nutricionais.
 
 🎯 SUAS RESPONSABILIDADES:
 - Ajudar usuários a encontrar alimentos no catálogo

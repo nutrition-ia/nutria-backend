@@ -36,6 +36,19 @@ export const mastra = new Mastra({
               );
             }
 
+            console.log('📥 Mastra received:', JSON.stringify({
+              messageCount: messages.length,
+              messages: messages.map((m: { role: string; content?: { type: string; mediaType?: string; data?: string }[] }) => ({
+                role: m.role,
+                contentTypes: m.content?.map((c: { type: string; mediaType?: string; data?: string }) => ({
+                  type: c.type,
+                  mediaType: c.mediaType,
+                  hasData: !!c.data,
+                  dataLength: c.data?.length || 0
+                }))
+              }))
+            }, null, 2));
+
             const mastra = c.get('mastra');
             const nutritionAgent = mastra.getAgent('nutritionAnalystAgent');
 
