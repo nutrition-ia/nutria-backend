@@ -179,6 +179,103 @@ export interface UserFiltersResponse {
   disliked_foods: string[];
 }
 
+// ============================================
+// TRACKING TYPES
+// ============================================
+
+export interface FoodLogItem {
+  food_id: string;
+  quantity_g: number;
+  name?: string;
+}
+
+export interface LogMealRequest {
+  user_id: string;
+  meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+  foods: FoodLogItem[];
+  consumed_at?: string;
+  notes?: string;
+}
+
+export interface MealLogResponse {
+  id: string;
+  user_id: string;
+  consumed_at: string;
+  meal_type: string;
+  foods: Record<string, unknown>[];
+  total_calories: number;
+  total_protein_g: number;
+  total_carbs_g: number;
+  total_fat_g: number;
+  total_fiber_g?: number;
+  total_sodium_mg?: number;
+  notes?: string;
+  created_at: string;
+}
+
+export interface MealSummary {
+  id: string;
+  meal_type: string;
+  consumed_at: string;
+  total_calories: number;
+  total_protein_g: number;
+  total_carbs_g: number;
+  total_fat_g: number;
+  num_foods: number;
+  notes?: string;
+}
+
+export interface NutritionProgress {
+  calories_pct: number;
+  protein_pct: number;
+  carbs_pct: number;
+  fat_pct: number;
+}
+
+export interface DailySummaryResponse {
+  date: string;
+  meals: MealSummary[];
+  totals: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    fiber_g: number;
+    sodium_mg: number;
+  };
+  targets: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  progress: NutritionProgress;
+  num_meals: number;
+}
+
+export interface DayStats {
+  date: string;
+  total_calories: number;
+  total_protein_g: number;
+  total_carbs_g: number;
+  total_fat_g: number;
+  num_meals: number;
+  target_calories?: number;
+  target_protein_g?: number;
+}
+
+export interface WeeklyStatsResponse {
+  user_id: string;
+  stats: DayStats[];
+  averages: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  adherence_rate: number;
+}
+
 export interface ClientConfig {
   baseUrl: string;
   timeout: number;
@@ -508,6 +605,122 @@ export const getRecommendations = async (
 };
 
 /**
+ * Registra uma refeição consumida
+ *
+ * @example
+ * const result = await logMeal({
+ *   user_id: 'uuid-here',
+ *   meal_type: 'breakfast',
+ *   foods: [
+ *     { food_id: 'uuid-food', quantity_g: 100, name: 'Aveia' }
+ *   ],
+ *   notes: 'Café da manhã pós-treino'
+ * });
+ */
+export const logMeal = async (
+  request: LogMealRequest,
+  config = defaultConfig,
+): Promise<MealLogResponse> => {
+  console.log(
+    `📊 [CatalogClient] Registrando ${request.meal_type} com ${request.foods.length} alimentos`,
+  );
+
+  const response = await postRequest<MealLogResponse>(
+    "/api/v1/tracking/meals/log",
+    request,
+    config,
+  );
+
+  console.log(
+    `✅ [CatalogClient] Refeição registrada: ${response.total_calories} kcal`,
+  );
+
+  return response;
+};
+
+/**
+ * Obtém resumo nutricional do dia
+ *
+ * @example
+ * const result = await getDailySummary({
+ *   user_id: 'uuid-here',
+ *   date: '2024-01-27'
+ * });
+ */
+export const getDailySummary = async (
+  userId: string,
+  date?: string,
+  config = defaultConfig,
+): Promise<DailySummaryResponse> => {
+  console.log(`📈 [CatalogClient] Obtendo resumo diário para ${userId}`);
+
+  const params = new URLSearchParams({
+    user_id: userId,
+    ...(date && { date }),
+  });
+
+  const url = `${config.baseUrl}/api/v1/tracking/summary/daily?${params}`;
+
+  const result = await executeRequest<DailySummaryResponse>(
+    url,
+    { method: "GET" },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(
+    `✅ [CatalogClient] Resumo obtido: ${result.data.num_meals} refeições`,
+  );
+
+  return result.data;
+};
+
+/**
+ * Obtém estatísticas semanais
+ *
+ * @example
+ * const result = await getWeeklyStats({
+ *   user_id: 'uuid-here',
+ *   days: 7
+ * });
+ */
+export const getWeeklyStats = async (
+  userId: string,
+  days = 7,
+  config = defaultConfig,
+): Promise<WeeklyStatsResponse> => {
+  console.log(
+    `📊 [CatalogClient] Obtendo estatísticas de ${days} dias para ${userId}`,
+  );
+
+  const params = new URLSearchParams({
+    user_id: userId,
+    days: days.toString(),
+  });
+
+  const url = `${config.baseUrl}/api/v1/tracking/stats/weekly?${params}`;
+
+  const result = await executeRequest<WeeklyStatsResponse>(
+    url,
+    { method: "GET" },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(
+    `✅ [CatalogClient] Estatísticas obtidas: ${result.data.stats.length} dias`,
+  );
+
+  return result.data;
+};
+
+/**
  * Verifica se a API está disponível
  */
 export const healthCheck = async (config = defaultConfig): Promise<boolean> => {
@@ -541,6 +754,11 @@ export const createClient = (customConfig?: Partial<ClientConfig>) => {
       findSimilarFoods(request, config),
     getRecommendations: (request: RecommendationRequest) =>
       getRecommendations(request, config),
+    logMeal: (request: LogMealRequest) => logMeal(request, config),
+    getDailySummary: (userId: string, date?: string) =>
+      getDailySummary(userId, date, config),
+    getWeeklyStats: (userId: string, days?: number) =>
+      getWeeklyStats(userId, days, config),
     healthCheck: () => healthCheck(config),
     config,
   };
