@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDailySummary } from "../clients/catalog-client";
 
 const getDailySummaryToolInput = z.object({
-  user_id: z.string().describe("ID do usuário"),
+  // user_id é obtido automaticamente do contexto (resourceId)
   date: z
     .string()
     .optional()
@@ -58,13 +58,17 @@ export const getDailySummaryTool = createTool({
       }),
     ),
   }),
-  execute: async ({ context }) => {
-    console.log(
-      "📈 [Tool:getDailySummary] Obtendo resumo do dia:",
-      context.user_id,
-    );
+  execute: async ({ context, resourceId: toolResourceId }) => {
+    // Desestrutura parâmetros do context
+    const { date } = context;
 
-    const result = await getDailySummary(context.user_id, context.date);
+    // Pega user_id do resourceId (passado pelo agente via stream options)
+    const userId = toolResourceId || (context as any).resourceId || 'anonymous';
+
+    console.log("📈 [Tool:getDailySummary] Obtendo resumo para usuário:", userId);
+    console.log("Data:", date || 'hoje');
+
+    const result = await getDailySummary(userId, date);
 
     return {
       date: result.date,
