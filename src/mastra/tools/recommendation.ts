@@ -36,7 +36,7 @@ export const recommendationTool = createTool({
     "Considera restrições alimentares, alergias e alimentos que o usuário não gosta. " +
     "Pode filtrar por categoria de alimento.",
   inputSchema: z.object({
-    userId: z.string().describe("ID do perfil do usuário (UUID)"),
+    // user_id é obtido automaticamente do contexto (resourceId)
     limit: z
       .number()
       .optional()
@@ -50,8 +50,11 @@ export const recommendationTool = createTool({
       ),
   }),
   outputSchema: recommendationOutputSchema,
-  execute: async ({ context }) => {
-    const { userId, limit = 20, category } = context;
+  execute: async ({ context, resourceId: toolResourceId }) => {
+    const { limit = 20, category } = context;
+
+    // Pega user_id do resourceId (passado pelo agente via stream options)
+    const userId = toolResourceId || (context as any).resourceId || 'anonymous';
 
     logger.info(
       `🎯 [Tool] Buscando recomendações para usuário: "${userId}"${category ? ` (categoria: ${category})` : ""}`,

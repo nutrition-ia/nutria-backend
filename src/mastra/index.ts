@@ -3,6 +3,11 @@ import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
 import { registerApiRoute } from '@mastra/core/server';
 import { nutritionAnalystAgent } from './agents/nutrition-analyst';
+import { handleAuth, handleMe } from '../lib/auth-routes';
+import { getUserProfileFromDB } from './utils/user-profile-loader';
+import {  userProfileToContext } from "../mastra/config/memory";
+
+
 
 export const mastra = new Mastra({
   workflows: {},
@@ -23,6 +28,15 @@ export const mastra = new Mastra({
   },
   server: {
     apiRoutes: [
+      // Auth routes - todas as variações
+      registerApiRoute('/auth/sign-up', { method: 'POST', handler: handleAuth }),
+      registerApiRoute('/auth/sign-in/email', { method: 'POST', handler: handleAuth }),
+      registerApiRoute('/auth/sign-out', { method: 'POST', handler: handleAuth }),
+      registerApiRoute('/auth/get-session', { method: 'GET', handler: handleAuth }),
+      registerApiRoute('/auth/session', { method: 'GET', handler: handleAuth }),
+      registerApiRoute('/me', { method: 'GET', handler: handleMe }),
+
+      // Rota de chat
       registerApiRoute('/chat', {
         method: 'POST',
         handler: async (c) => {
@@ -36,7 +50,30 @@ export const mastra = new Mastra({
               );
             }
 
+            // Extrai informações do usuário dos headers
+            const userId = c.req.header('X-User-Id');
+            const userEmail = c.req.header('X-User-Email');
+            if(!userId) {
+              return c.json({ error: 'Header "X-User-Id" é obrigatório' }, 400);
+            }
+            // Tenta carregar perfil do usuário (opcional)
+            const userProfile = await getUserProfileFromDB(userId);
+            const contextMessages = [];
+
+            if (userProfile) {
+              contextMessages.push(userProfileToContext(userProfile));
+            } else {
+              console.log(`⚠️ [Chat] Usuário ${userId} sem perfil - continuando sem personalização`);
+              // Informa a LLM que o usuário não tem perfil
+              contextMessages.push({
+                role: 'system' as const,
+                content: `⚠️ SISTEMA: Este usuário ainda NÃO tem um perfil nutricional cadastrado. Siga as instruções da seção "USUÁRIO SEM PERFIL" das suas diretrizes.`
+              });
+            }
+
             console.log('📥 Mastra received:', JSON.stringify({
+              userId,
+              userEmail,
               messageCount: messages.length,
               messages: messages.map((m: { role: string; content?: { type: string; mediaType?: string; data?: string }[] }) => ({
                 role: m.role,
@@ -56,8 +93,12 @@ export const mastra = new Mastra({
               return c.json({ error: 'Agent não encontrado' }, 500);
             }
 
+            // Usa resourceId para identificar o usuário (Mastra padrão)
             const agentStream = await nutritionAgent.stream(messages, {
               format: 'aisdk',
+              resourceId: userId,
+              threadId: `chat-${userId}`,
+              context: contextMessages,
             });
 
             return agentStream.toUIMessageStreamResponse();

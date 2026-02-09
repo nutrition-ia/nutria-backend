@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getWeeklyStats } from "../clients/catalog-client";
 
 const getWeeklyStatsToolInput = z.object({
-  user_id: z.string().describe("ID do usuário"),
+  // user_id é obtido automaticamente do contexto (resourceId)
   days: z
     .number()
     .int()
@@ -52,13 +52,17 @@ export const getWeeklyStatsTool = createTool({
       }),
     ),
   }),
-  execute: async ({ context }) => {
-    console.log(
-      "📊 [Tool:getWeeklyStats] Obtendo estatísticas semanais:",
-      context.user_id,
-    );
+  execute: async ({ context, resourceId: toolResourceId }) => {
+    // Desestrutura parâmetros do context
+    const { days = 7 } = context;
 
-    const result = await getWeeklyStats(context.user_id, context.days);
+    // Pega user_id do resourceId (passado pelo agente via stream options)
+    const userId = toolResourceId || (context as any).resourceId || 'anonymous';
+
+    console.log("📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário:", userId);
+    console.log("Dias:", days);
+
+    const result = await getWeeklyStats(userId, days);
 
     return {
       user_id: result.user_id,
