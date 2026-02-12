@@ -33,13 +33,44 @@ export interface MealPlan {
   id: string;
   user_id: string;
   plan_name: string;
-  description: string;
+  description?: string;
   daily_calories: number;
   daily_protein_g: number;
   daily_fat_g: number;
   daily_carbs_g: number;
   created_by: string;
-  meals: Record<string, unknown>;
+  meals: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateMealPlanRequest {
+  user_id: string;
+  plan_name: string;
+  description?: string;
+  daily_calories: number;
+  daily_protein_g: number;
+  daily_fat_g: number;
+  daily_carbs_g: number;
+  created_by?: "user" | "ai";
+  meals?: Record<string, unknown>[];
+}
+
+export interface UpdateMealPlanRequest {
+  plan_name?: string;
+  description?: string;
+  daily_calories?: number;
+  daily_protein_g?: number;
+  daily_fat_g?: number;
+  daily_carbs_g?: number;
+  meals?: Record<string, unknown>[];
+}
+
+export interface MealPlanListResponse {
+  plans: MealPlan[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface SearchFilters {
@@ -505,6 +536,39 @@ export const searchFoods = async (
 };
 
 /**
+ * Busca alimentos usando similaridade de embeddings (busca semântica)
+ *
+ * Mais efetivo que searchFoods para nomes complexos ou descritivos.
+ * Usa cosine similarity com pgvector para encontrar matches semânticos.
+ *
+ * @example
+ * const result = await searchFoodsByEmbedding({
+ *   query: 'chicken in creamy sauce',
+ *   limit: 5
+ * });
+ */
+export const searchFoodsByEmbedding = async (
+  request: SearchFoodsRequest,
+  config = defaultConfig,
+): Promise<SimilarFoodsResponse> => {
+  console.log(`🧠 [CatalogClient] Busca semântica: "${request.query}"`);
+
+  const response = await postRequest<SimilarFoodsResponse>(
+    "/api/v1/foods/search-by-embedding",
+    {
+      query: request.query,
+      limit: request.limit ?? 10,
+      filters: request.filters ?? {},
+    },
+    config,
+  );
+
+  console.log(`✅ [CatalogClient] Encontrados ${response.count} alimentos similares`);
+
+  return response;
+};
+
+/**
  * Calcula valores nutricionais totais
  *
  * @example
@@ -721,6 +785,180 @@ export const getWeeklyStats = async (
 };
 
 /**
+ * Cria um novo plano alimentar
+ *
+ * @example
+ * const result = await createMealPlan({
+ *   user_id: 'uuid-here',
+ *   plan_name: 'Dieta 2000 Calorias',
+ *   daily_calories: 2000,
+ *   daily_protein_g: 150,
+ *   daily_fat_g: 65,
+ *   daily_carbs_g: 200,
+ *   created_by: 'ai'
+ * });
+ */
+export const createMealPlan = async (
+  request: CreateMealPlanRequest,
+  config = defaultConfig,
+): Promise<MealPlan> => {
+  console.log(
+    `📋 [CatalogClient] Criando plano alimentar: "${request.plan_name}"`,
+  );
+
+  const response = await postRequest<MealPlan>(
+    `/api/v1/meal-plans?user_id=${request.user_id}`,
+    request,
+    config,
+  );
+
+  console.log(`✅ [CatalogClient] Plano criado: ${response.id}`);
+
+  return response;
+};
+
+/**
+ * Lista todos os planos alimentares de um usuário
+ *
+ * @example
+ * const result = await listMealPlans('uuid-here', 1, 10);
+ */
+export const listMealPlans = async (
+  userId: string,
+  page = 1,
+  pageSize = 10,
+  config = defaultConfig,
+): Promise<MealPlanListResponse> => {
+  console.log(
+    `📋 [CatalogClient] Listando planos alimentares para usuário: ${userId}`,
+  );
+
+  const params = new URLSearchParams({
+    user_id: userId,
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+
+  const url = `${config.baseUrl}/api/v1/meal-plans?${params}`;
+
+  const result = await executeRequest<MealPlanListResponse>(
+    url,
+    { method: "GET" },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(
+    `✅ [CatalogClient] Encontrados ${result.data.total} planos alimentares`,
+  );
+
+  return result.data;
+};
+
+/**
+ * Obtém um plano alimentar específico
+ *
+ * @example
+ * const result = await getMealPlan('plan-uuid', 'user-uuid');
+ */
+export const getMealPlan = async (
+  planId: string,
+  userId: string,
+  config = defaultConfig,
+): Promise<MealPlan> => {
+  console.log(`📋 [CatalogClient] Obtendo plano alimentar: ${planId}`);
+
+  const params = new URLSearchParams({ user_id: userId });
+  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}?${params}`;
+
+  const result = await executeRequest<MealPlan>(
+    url,
+    { method: "GET" },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(
+    `✅ [CatalogClient] Plano obtido: "${result.data.plan_name}"`,
+  );
+
+  return result.data;
+};
+
+/**
+ * Atualiza um plano alimentar existente
+ *
+ * @example
+ * const result = await updateMealPlan('plan-uuid', 'user-uuid', {
+ *   daily_calories: 1800
+ * });
+ */
+export const updateMealPlan = async (
+  planId: string,
+  userId: string,
+  updates: UpdateMealPlanRequest,
+  config = defaultConfig,
+): Promise<MealPlan> => {
+  console.log(`📋 [CatalogClient] Atualizando plano alimentar: ${planId}`);
+
+  const params = new URLSearchParams({ user_id: userId });
+  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}?${params}`;
+
+  const result = await executeRequest<MealPlan>(
+    url,
+    {
+      method: "PUT",
+      body: JSON.stringify(updates),
+      headers: { "Content-Type": "application/json" },
+    },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(`✅ [CatalogClient] Plano atualizado`);
+
+  return result.data;
+};
+
+/**
+ * Deleta um plano alimentar
+ *
+ * @example
+ * await deleteMealPlan('plan-uuid', 'user-uuid');
+ */
+export const deleteMealPlan = async (
+  planId: string,
+  userId: string,
+  config = defaultConfig,
+): Promise<void> => {
+  console.log(`📋 [CatalogClient] Deletando plano alimentar: ${planId}`);
+
+  const params = new URLSearchParams({ user_id: userId });
+  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}?${params}`;
+
+  const result = await executeRequest<void>(
+    url,
+    { method: "DELETE" },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(`✅ [CatalogClient] Plano deletado`);
+};
+
+/**
  * Verifica se a API está disponível
  */
 export const healthCheck = async (config = defaultConfig): Promise<boolean> => {
@@ -748,6 +986,8 @@ export const createClient = (customConfig?: Partial<ClientConfig>) => {
 
   return {
     searchFoods: (request: SearchFoodsRequest) => searchFoods(request, config),
+    searchFoodsByEmbedding: (request: SearchFoodsRequest) =>
+      searchFoodsByEmbedding(request, config),
     calculateNutrition: (foods: NutritionItem[]) =>
       calculateNutrition(foods, config),
     findSimilarFoods: (request: SimilarFoodRequest) =>
@@ -759,6 +999,19 @@ export const createClient = (customConfig?: Partial<ClientConfig>) => {
       getDailySummary(userId, date, config),
     getWeeklyStats: (userId: string, days?: number) =>
       getWeeklyStats(userId, days, config),
+    createMealPlan: (request: CreateMealPlanRequest) =>
+      createMealPlan(request, config),
+    listMealPlans: (userId: string, page?: number, pageSize?: number) =>
+      listMealPlans(userId, page, pageSize, config),
+    getMealPlan: (planId: string, userId: string) =>
+      getMealPlan(planId, userId, config),
+    updateMealPlan: (
+      planId: string,
+      userId: string,
+      updates: UpdateMealPlanRequest,
+    ) => updateMealPlan(planId, userId, updates, config),
+    deleteMealPlan: (planId: string, userId: string) =>
+      deleteMealPlan(planId, userId, config),
     healthCheck: () => healthCheck(config),
     config,
   };

@@ -8,6 +8,13 @@ import { logMealTool } from "../tools/log-meal";
 import { getDailySummaryTool } from "../tools/get-daily-summary";
 import { getWeeklyStatsTool } from "../tools/get-weekly-stats";
 import { createUserProfileTool } from "../tools/create-user-profile";
+import { createMealPlanTool } from "../tools/create-meal-plan";
+import { listMealPlansTool } from "../tools/list-meal-plans";
+import { getMealPlanTool } from "../tools/get-meal-plan";
+import { updateMealPlanTool } from "../tools/update-meal-plan";
+import { deleteMealPlanTool } from "../tools/delete-meal-plan";
+import { analyzeFoodImageTool } from "../tools/analyze-food-image";
+import { confirmAndLogImageMealTool } from "../tools/confirm-and-log-image-meal";
 import { loadNutritionAnalystInstructions } from "../utils/context-loader";
 import { createNutritionMemory } from "../config/memory";
 
@@ -25,7 +32,7 @@ export const nutritionAnalystAgent = new Agent({
   description:
     "Agente especializado em análise nutricional, identificação de alimentos em imagens e busca de alimentos",
   instructions: loadNutritionAnalystInstructions(),
-  model: "github-models/openai/gpt-4.1-mini",
+  model: "github-models/openai/gpt-4o-mini",
   memory: createNutritionMemory(),
   tools: [
     searchFoodCatalogTool,
@@ -36,5 +43,12 @@ export const nutritionAnalystAgent = new Agent({
     logMealTool,
     getDailySummaryTool,
     getWeeklyStatsTool,
+    createMealPlanTool,
+    listMealPlansTool,
+    getMealPlanTool,
+    updateMealPlanTool,
+    deleteMealPlanTool,
+    analyzeFoodImageTool,
+    confirmAndLogImageMealTool,
   ],
 });
