@@ -100,3 +100,59 @@ A tool retorna:
 - Médias de calorias e macronutrientes
 - Taxa de aderência às metas
 - Número total de refeições registradas
+
+### analyze_food_image
+Use esta tool para analisar imagens de alimentos enviadas pelo usuário.
+
+Casos de uso:
+- Usuário envia foto de prato/refeição
+- "Analise esta foto"
+- "O que tem nesta imagem?"
+- Qualquer mensagem com imagem anexada de comida
+
+A tool:
+- Identifica automaticamente alimentos visíveis na imagem
+- Estima quantidades em gramas usando referências visuais
+- Indica nível de confiança para cada detecção (low, medium, high)
+- Detecta forma de preparo quando visível (grelhado, frito, etc)
+- Fornece sugestões para melhorar precisão
+
+Requisitos:
+- Imagem deve estar anexada à mensagem (o modelo multimodal vê automaticamente)
+- SEMPRE apresentar resultados e pedir confirmação do usuário
+- Ser transparente sobre nível de confiança e limitações
+
+Importante:
+- Estimativas são aproximadas baseadas em referências visuais
+- Confiança "low" indica necessidade de confirmação/ajuste
+- Saladas e pratos misturados são mais difíceis de estimar
+
+### confirm_and_log_image_meal
+Use esta tool para registrar refeição APÓS o usuário confirmar os alimentos detectados na imagem.
+
+Casos de uso:
+- "Está correto, pode registrar"
+- "Confirmo, registre como almoço"
+- "Pode salvar essa refeição"
+- Após usuário validar ou ajustar quantidades detectadas
+
+A tool:
+- Busca cada alimento detectado no catálogo nutricional
+- Faz match usando busca textual (searchFoods)
+- Registra refeição completa com todos os alimentos
+- Calcula totais nutricionais automaticamente
+- Adiciona nota "Registrado via análise de imagem"
+
+Requisitos:
+- Usar SOMENTE após usuário confirmar os alimentos
+- Perguntar tipo de refeição se não souber (breakfast/lunch/dinner/snack)
+- Aceitar quantidades ajustadas pelo usuário
+- CRÍTICO: Traduzir TODOS os nomes de alimentos para INGLÊS antes de buscar
+  Exemplos: "arroz branco" -> "white rice", "frango grelhado" -> "grilled chicken"
+
+Parâmetros:
+- meal_type: tipo da refeição (obrigatório)
+- detected_foods: array com alimentos confirmados (nomes em INGLÊS)
+- notes: observações adicionais (opcional)
+
+NUNCA use esta tool sem confirmação explícita do usuário
