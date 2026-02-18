@@ -2,7 +2,7 @@
  * Tool para analisar imagens de alimentos usando visão computacional
  */
 
-import { createTool } from "@mastra/core";
+import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const analyzeFoodImageToolInput = z.object({
@@ -29,8 +29,8 @@ export const analyzeFoodImageTool = createTool({
     "Analisa imagem de alimento com visão computacional. Identifica alimentos, estima quantidades (g) e detecta preparo. Use quando usuário enviar foto de comida.",
   inputSchema: analyzeFoodImageToolInput,
   outputSchema: analyzeFoodImageToolOutput,
-  execute: async ({ context }) => {
-    const { additional_context } = context;
+  execute: async (inputData) => {
+    const { additional_context } = inputData;
 
     // IMPORTANTE: Este tool NÃO processa a imagem diretamente
     // O modelo GPT-4o-mini (multimodal) já vê a imagem automaticamente

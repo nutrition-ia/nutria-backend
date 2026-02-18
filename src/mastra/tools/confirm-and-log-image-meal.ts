@@ -2,9 +2,10 @@
  * Tool para confirmar e registrar refeição após análise de imagem
  */
 
-import { createTool } from "@mastra/core";
+import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { searchFoodsByEmbedding, logMeal } from "../clients/catalog-client";
+import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const confirmAndLogImageMealToolInput = z.object({
   meal_type: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Tipo"),
@@ -44,15 +45,11 @@ export const confirmAndLogImageMealTool = createTool({
     "Registra refeição após análise de imagem. Use APÓS analyze_food_image quando usuário confirmar. Busca alimentos com embeddings (semântica).",
   inputSchema: confirmAndLogImageMealToolInput,
   outputSchema: confirmAndLogImageMealToolOutput,
-  execute: async ({ context, resourceId: toolResourceId }) => {
-    const { meal_type, detected_foods, notes } = context;
+  execute: async (inputData, executionContext) => {
+    const { meal_type, detected_foods, notes } = inputData;
 
-    // Resolve user ID (seguir padrão dos outros tools)
-    const userId =
-      toolResourceId ||
-      (context as any).resourceId ||
-      (context as any).metadata?.resourceId ||
-      "anonymous";
+    // Resolve user ID
+    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
 
     if (userId === "anonymous") {
       throw new Error(

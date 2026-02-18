@@ -2,9 +2,10 @@
  * Tool para criar perfil de usuário
  */
 
-import { createTool } from "@mastra/core";
+import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { invalidateUserProfileCache } from "../utils/user-profile-loader";
+import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const CATALOG_API_URL = process.env.CATALOG_API_URL || 'http://localhost:8000';
 
@@ -66,7 +67,7 @@ export const createUserProfileTool = createTool({
       .optional()
       .describe("Dados do perfil criado"),
   }),
-  execute: async ({ context, resourceId: toolResourceId }) => {
+  execute: async (inputData, executionContext) => {
     const {
       name,
       age,
@@ -78,10 +79,10 @@ export const createUserProfileTool = createTool({
       allergies = [],
       disliked_foods = [],
       preferred_cuisines = [],
-    } = context;
+    } = inputData;
 
-    // Pega user_id do resourceId
-    const userId = toolResourceId || (context as any).resourceId;
+    // Get user_id from execution context
+    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
 
     if (!userId || userId === "anonymous") {
       return {

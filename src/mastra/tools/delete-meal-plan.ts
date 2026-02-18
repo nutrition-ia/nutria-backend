@@ -1,6 +1,7 @@
-import { createTool } from "@mastra/core";
+import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { deleteMealPlan } from "../clients/catalog-client";
+import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const deleteMealPlanToolInput = z.object({
   plan_id: z.string().describe("ID do plano a deletar"),
@@ -19,15 +20,11 @@ export const deleteMealPlanTool = createTool({
     "Exemplos: 'Delete minha dieta antiga', 'Remove o plano X', 'Apaga essa dieta'",
   inputSchema: deleteMealPlanToolInput,
   outputSchema: deleteMealPlanToolOutput,
-  execute: async ({ context, resourceId: toolResourceId }) => {
-    const { plan_id } = context;
+  execute: async (inputData, executionContext) => {
+    const { plan_id } = inputData;
 
-    // Resolve user ID from context
-    const userId =
-      toolResourceId ||
-      (context as any).resourceId ||
-      (context as any).metadata?.resourceId ||
-      "anonymous";
+    // Resolve user ID from execution context
+    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
 
     if (userId === "anonymous") {
       throw new Error(

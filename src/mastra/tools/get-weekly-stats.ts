@@ -2,9 +2,10 @@
  * Tool para obter estatísticas semanais
  */
 
-import { createTool } from "@mastra/core";
+import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getWeeklyStats } from "../clients/catalog-client";
+import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const getWeeklyStatsToolInput = z.object({
   // user_id é obtido automaticamente do contexto (resourceId)
@@ -52,12 +53,12 @@ export const getWeeklyStatsTool = createTool({
       }),
     ),
   }),
-  execute: async ({ context, resourceId: toolResourceId }) => {
-    // Desestrutura parâmetros do context
-    const { days = 7 } = context;
+  execute: async (inputData, executionContext) => {
+    // Desestrutura parâmetros do inputData
+    const { days = 7 } = inputData;
 
-    // Pega user_id do resourceId (passado pelo agente via stream options)
-    const userId = toolResourceId || (context as any).resourceId || 'anonymous';
+    // Get user_id from execution context
+    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
 
     console.log("📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário:", userId);
     console.log("Dias:", days);

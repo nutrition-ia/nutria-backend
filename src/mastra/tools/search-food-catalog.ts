@@ -39,8 +39,8 @@ export const searchFoodCatalogTool = createTool({
       .describe('Número máximo de resultados (padrão: 5)'),
   }),
   outputSchema: searchFoodOutputSchema,
-  execute: async ({ context }) => {
-    const { query, limit = 5 } = context;
+  execute: async (inputData) => {
+    const { query, limit = 5 } = inputData;
 
     logger.info(`🔍 [Tool] Buscando alimentos: "${query}" (limite: ${limit})`);
 

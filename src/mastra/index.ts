@@ -1,31 +1,29 @@
 import { Mastra } from '@mastra/core/mastra';
-import { PinoLogger } from '@mastra/loggers';
-import { LibSQLStore } from '@mastra/libsql';
 import { registerApiRoute } from '@mastra/core/server';
+import { MASTRA_RESOURCE_ID_KEY } from '@mastra/core/request-context';
+import { toAISdkStream } from '@mastra/ai-sdk';
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
+import { PinoLogger } from '@mastra/loggers';
 import { nutritionAnalystAgent } from './agents/nutrition-analyst';
 import { handleAuth, handleMe } from '../lib/auth-routes';
 import { getUserProfileFromDB } from './utils/user-profile-loader';
-import {  userProfileToContext } from "../mastra/config/memory";
+import { userProfileToContext } from "../mastra/config/memory";
+import { sharedStorage } from './config/storage';
+import { getObservabilityConfig } from './config/observabilityOptions';
 
 
 
 export const mastra = new Mastra({
+  storage: sharedStorage,
   workflows: {},
   agents: {
     nutritionAnalystAgent,
   },
-  storage: new LibSQLStore({
-    url: ':memory:',
-  }),
   logger: new PinoLogger({
     name: 'NutriAI',
     level: 'info',
   }),
-  observability: {
-    default: {
-      enabled: true,
-    },
-  },
+  observability: getObservabilityConfig(),
   server: {
     apiRoutes: [
       // Auth routes - todas as variações
@@ -56,18 +54,19 @@ export const mastra = new Mastra({
             if(!userId) {
               return c.json({ error: 'Header "X-User-Id" é obrigatório' }, 400);
             }
+
             // Tenta carregar perfil do usuário (opcional)
             const userProfile = await getUserProfileFromDB(userId);
             const contextMessages = [];
 
             if (userProfile) {
               contextMessages.push(userProfileToContext(userProfile));
+              console.log(`✅ [Chat] Usuário ${userId} com perfil carregado`);
             } else {
               console.log(`⚠️ [Chat] Usuário ${userId} sem perfil - continuando sem personalização`);
-              // Informa a LLM que o usuário não tem perfil
               contextMessages.push({
                 role: 'system' as const,
-                content: `⚠️ SISTEMA: Este usuário ainda NÃO tem um perfil nutricional cadastrado. Siga as instruções da seção "USUÁRIO SEM PERFIL" das suas diretrizes.`
+                content: 'SISTEMA: Este usuario ainda nao tem um perfil nutricional cadastrado.'
               });
             }
 
@@ -75,17 +74,13 @@ export const mastra = new Mastra({
               userId,
               userEmail,
               messageCount: messages.length,
-              messages: messages.map((m: { role: string; content?: { type: string; mediaType?: string; data?: string }[] }) => ({
-                role: m.role,
-                contentTypes: m.content?.map((c: { type: string; mediaType?: string; data?: string }) => ({
-                  type: c.type,
-                  mediaType: c.mediaType,
-                  hasData: !!c.data,
-                  dataLength: c.data?.length || 0
-                }))
-              }))
             }, null, 2));
 
+            // Configura o resourceId no requestContext para que as tools possam acessá-lo
+            const requestContext = c.get('requestContext');
+            requestContext.set(MASTRA_RESOURCE_ID_KEY, userId);
+
+            // Usa o agente Mastra (que já funciona com GitHub Models)
             const mastra = c.get('mastra');
             const nutritionAgent = mastra.getAgent('nutritionAnalystAgent');
 
@@ -93,15 +88,26 @@ export const mastra = new Mastra({
               return c.json({ error: 'Agent não encontrado' }, 500);
             }
 
-            // Usa resourceId para identificar o usuário (Mastra padrão)
-            const agentStream = await nutritionAgent.stream(messages, {
-              format: 'aisdk',
-              resourceId: userId,
-              threadId: `chat-${userId}`,
+            // Stream do Mastra Agent
+            const result = await nutritionAgent.stream(messages, {
               context: contextMessages,
             });
 
-            return agentStream.toUIMessageStreamResponse();
+            // Converte para formato AI SDK
+            const uiMessageStream = createUIMessageStream({
+              originalMessages: messages,
+              execute: async ({ writer }) => {
+                for await (const part of toAISdkStream(result, { from: 'agent' })) {
+                  await writer.write(part);
+                }
+              },
+            });
+
+            // Retorna como response compatível com useChat
+            return createUIMessageStreamResponse({
+              stream: uiMessageStream,
+            });
+
           } catch (error) {
             console.error('❌ Erro no endpoint /chat:', error);
             return c.json(
