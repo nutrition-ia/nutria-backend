@@ -1,6 +1,7 @@
-import { createTool } from "@mastra/core";
+import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { listMealPlans } from "../clients/catalog-client";
+import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const listMealPlansToolInput = z.object({
   page: z
@@ -40,15 +41,11 @@ export const listMealPlansTool = createTool({
     "Exemplos: 'Quais são minhas dietas?', 'Mostre meus planos', 'Tenho alguma dieta cadastrada?'",
   inputSchema: listMealPlansToolInput,
   outputSchema: listMealPlansToolOutput,
-  execute: async ({ context, resourceId: toolResourceId }) => {
-    const { page = 1, page_size = 10 } = context;
+  execute: async (inputData, executionContext) => {
+    const { page = 1, page_size = 10 } = inputData;
 
-    // Resolve user ID from context
-    const userId =
-      toolResourceId ||
-      (context as any).resourceId ||
-      (context as any).metadata?.resourceId ||
-      "anonymous";
+    // Resolve user ID from execution context
+    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
 
     if (userId === "anonymous") {
       throw new Error(

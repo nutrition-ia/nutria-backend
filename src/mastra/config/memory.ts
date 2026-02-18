@@ -17,6 +17,7 @@
 
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
+import { sharedStorage } from './storage';
 // import { LibSQLVector } from "@mastra/libsql";
 // import { ModelRouterEmbeddingModel } from "@mastra/core/llm";
 
@@ -37,9 +38,7 @@ export function createNutritionMemory() {
 
   return new Memory({
     // 📦 Storage: LibSQL para message storage
-    storage: new LibSQLStore({
-      url: storageUrl,
-    }),
+    storage: sharedStorage,
 
     // 🔍 Vector store: LibSQL Vector para semantic search (comentado por enquanto)
     // vector: new LibSQLVector({
@@ -88,15 +87,13 @@ export function createNutritionMemory() {
 - Ajustes sugeridos que o usuário aprovou:
 `,
       },
-
-      // 4️⃣ GERAÇÃO AUTOMÁTICA DE TÍTULO
-      threads: {
-        generateTitle: {
-          model: "github-models/openai/gpt-4o-mini",  // Modelo menor para economia
-          instructions: "Gere um título curto (máximo 6 palavras) que resuma o tema principal desta conversa sobre nutrição",
-        },
-      },
     },
+
+    // 4️⃣ GERAÇÃO AUTOMÁTICA DE TÍTULO - Removido temporariamente (API mudou no Mastra 1.3.0)
+    // generateTitle: {
+    //   model: "github-models/openai/gpt-4o-mini",
+    //   instructions: "Gere um título curto (máximo 6 palavras) que resuma o tema principal desta conversa sobre nutrição",
+    // },
   });
 }
 

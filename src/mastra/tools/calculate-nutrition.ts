@@ -39,8 +39,8 @@ export const calculateNutritionTool = createTool({
       .describe('Lista de alimentos com quantidades'),
   }),
   outputSchema: calculateNutritionOutputSchema,
-  execute: async ({ context }) => {
-    const { foods } = context;
+  execute: async (inputData) => {
+    const { foods } = inputData;
 
     logger.info(`🧮 [Tool] Calculando nutrição para ${foods.length} alimentos`);
 

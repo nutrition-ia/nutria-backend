@@ -1,4 +1,5 @@
 import { createTool } from "@mastra/core/tools";
+import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 import { z } from "zod";
 import {
   getRecommendations,
@@ -50,11 +51,11 @@ export const recommendationTool = createTool({
       ),
   }),
   outputSchema: recommendationOutputSchema,
-  execute: async ({ context, resourceId: toolResourceId }) => {
-    const { limit = 20, category } = context;
+  execute: async (inputData, executionContext) => {
+    const { limit = 20, category } = inputData;
 
-    // Pega user_id do resourceId (passado pelo agente via stream options)
-    const userId = toolResourceId || (context as any).resourceId || 'anonymous';
+    // Pega user_id do requestContext (definido no endpoint /chat)
+    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
 
     logger.info(
       `🎯 [Tool] Buscando recomendações para usuário: "${userId}"${category ? ` (categoria: ${category})` : ""}`,

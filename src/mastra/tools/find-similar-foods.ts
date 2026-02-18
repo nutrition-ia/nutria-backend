@@ -53,8 +53,8 @@ export const findSimilarFoodsTool = createTool({
       .describe('Tolerância de diferença nutricional (0.3 = 30% de diferença permitida)'),
   }),
   outputSchema: findSimilarOutputSchema,
-  execute: async ({ context }) => {
-    const { foodId, limit = 10, sameCategory = false, tolerance = 0.3 } = context;
+  execute: async (inputData) => {
+    const { foodId, limit = 10, sameCategory = false, tolerance = 0.3 } = inputData;
 
     logger.info(`🔄 [Tool] Buscando alimentos similares ao ID: "${foodId}"`);
 
