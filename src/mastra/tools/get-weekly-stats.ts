@@ -57,13 +57,22 @@ export const getWeeklyStatsTool = createTool({
     // Desestrutura parâmetros do inputData
     const { days = 7 } = inputData;
 
-    // Get user_id from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Get user_id and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
-    console.log("📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário:", userId);
+    console.log(
+      "📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário:",
+      userId,
+    );
     console.log("Dias:", days);
 
-    const result = await getWeeklyStats(userId, days);
+    const result = await getWeeklyStats(userId, days, undefined, authToken);
 
     return {
       user_id: result.user_id,

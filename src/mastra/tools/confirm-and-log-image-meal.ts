@@ -9,14 +9,17 @@ import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const confirmAndLogImageMealToolInput = z.object({
   meal_type: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Tipo"),
-  detected_foods: z.array(
-    z.object({
-      food_name: z.string().describe("Nome"),
-      quantity_g: z.number().describe("Gramas"),
-      user_confirmed: z.boolean().default(true).describe("Confirmado"),
-      user_adjusted_quantity_g: z.number().optional().describe("Ajustado"),
-    })
-  ).min(1).describe("Alimentos"),
+  detected_foods: z
+    .array(
+      z.object({
+        food_name: z.string().describe("Nome"),
+        quantity_g: z.number().describe("Gramas"),
+        user_confirmed: z.boolean().default(true).describe("Confirmado"),
+        user_adjusted_quantity_g: z.number().optional().describe("Ajustado"),
+      }),
+    )
+    .min(1)
+    .describe("Alimentos"),
   notes: z.string().optional().describe("Notas"),
 });
 
@@ -27,16 +30,18 @@ const confirmAndLogImageMealToolOutput = z.object({
   total_carbs_g: z.number().describe("Carbos"),
   total_fat_g: z.number().describe("Gordura"),
   foods_logged: z.number().describe("Qtd"),
-  catalog_matches: z.array(
-    z.object({
-      detected_name: z.string(),
-      catalog_food: z.object({
-        id: z.string(),
-        name: z.string(),
-        similarity: z.number(),
+  catalog_matches: z
+    .array(
+      z.object({
+        detected_name: z.string(),
+        catalog_food: z.object({
+          id: z.string(),
+          name: z.string(),
+          similarity: z.number(),
+        }),
       }),
-    })
-  ).describe("Matches"),
+    )
+    .describe("Matches"),
 });
 
 export const confirmAndLogImageMealTool = createTool({
@@ -48,17 +53,23 @@ export const confirmAndLogImageMealTool = createTool({
   execute: async (inputData, executionContext) => {
     const { meal_type, detected_foods, notes } = inputData;
 
-    // Resolve user ID
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Resolve user ID and JWT
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     if (userId === "anonymous") {
       throw new Error(
-        "Usuário não autenticado. Por favor, faça login para registrar refeições."
+        "Usuário não autenticado. Por favor, faça login para registrar refeições.",
       );
     }
 
     console.log(
-      `🍽️ [Tool:confirmAndLogImageMeal] Registrando refeição de imagem para: ${userId}`
+      `🍽️ [Tool:confirmAndLogImageMeal] Registrando refeição de imagem para: ${userId}`,
     );
     console.log(`   Tipo: ${meal_type}, Alimentos: ${detected_foods.length}`);
 
@@ -68,26 +79,37 @@ export const confirmAndLogImageMealTool = createTool({
     // Para cada alimento detectado, busca no catálogo
     for (const food of detected_foods) {
       if (!food.user_confirmed) {
-        console.log(`   ⊘ Pulando '${food.food_name}' (não confirmado pelo usuário)`);
+        console.log(
+          `   ⊘ Pulando '${food.food_name}' (não confirmado pelo usuário)`,
+        );
         continue;
       }
 
       const quantity = food.user_adjusted_quantity_g || food.quantity_g;
 
-      console.log(`   🔎 Buscando '${food.food_name}' no catálogo (busca semântica)...`);
+      console.log(
+        `   🔎 Buscando '${food.food_name}' no catálogo (busca semântica)...`,
+      );
 
       try {
         // Busca semântica usando embeddings + cosine similarity
-        const searchResult = await searchFoodsByEmbedding({
-          query: food.food_name,
-          limit: 1,  // Pega apenas o melhor match
-        });
+        const searchResult = await searchFoodsByEmbedding(
+          {
+            query: food.food_name,
+            limit: 1,
+          },
+          undefined,
+          authToken,
+        );
 
-        if (searchResult.similar_foods && searchResult.similar_foods.length > 0) {
+        if (
+          searchResult.similar_foods &&
+          searchResult.similar_foods.length > 0
+        ) {
           const catalogFood = searchResult.similar_foods[0];
 
           console.log(
-            `   ✓ Match: '${catalogFood.name}' (ID: ${catalogFood.id}, score: ${catalogFood.similarity_score})`
+            `   ✓ Match: '${catalogFood.name}' (ID: ${catalogFood.id}, score: ${catalogFood.similarity_score})`,
           );
 
           catalogMatches.push({
@@ -105,33 +127,39 @@ export const confirmAndLogImageMealTool = createTool({
             name: catalogFood.name,
           });
         } else {
-          console.warn(`   ⚠️ Nenhum match encontrado para '${food.food_name}'`);
+          console.warn(
+            `   ⚠️ Nenhum match encontrado para '${food.food_name}'`,
+          );
         }
       } catch (error) {
         console.error(
-          `   ❌ Erro ao buscar '${food.food_name}': ${error instanceof Error ? error.message : "Erro desconhecido"}`
+          `   ❌ Erro ao buscar '${food.food_name}': ${error instanceof Error ? error.message : "Erro desconhecido"}`,
         );
       }
     }
 
     if (foodsToLog.length === 0) {
       throw new Error(
-        "Nenhum alimento foi encontrado no catálogo. Tente ser mais específico com os nomes."
+        "Nenhum alimento foi encontrado no catálogo. Tente ser mais específico com os nomes.",
       );
     }
 
     // Registra a refeição completa
     console.log(`   💾 Registrando ${foodsToLog.length} alimento(s)...`);
 
-    const mealLog = await logMeal({
-      user_id: userId,
-      meal_type,
-      foods: foodsToLog,
-      notes: notes || "Registrado via análise de imagem 📸",
-    });
+    const mealLog = await logMeal(
+      {
+        user_id: userId,
+        meal_type,
+        foods: foodsToLog,
+        notes: notes || "Registrado via análise de imagem",
+      },
+      undefined,
+      authToken,
+    );
 
     console.log(
-      `   ✅ Refeição registrada! ID: ${mealLog.id}, Calorias: ${mealLog.total_calories} kcal`
+      `   ✅ Refeição registrada! ID: ${mealLog.id}, Calorias: ${mealLog.total_calories} kcal`,
     );
 
     return {

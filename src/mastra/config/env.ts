@@ -14,25 +14,41 @@ export const env = {
    * URL base da API de catálogo de alimentos
    * Default: localhost:8000 (desenvolvimento local)
    */
-  CATALOG_API_URL: process.env.CATALOG_API_URL || 'http://localhost:8000',
+  CATALOG_API_URL: process.env.CATALOG_API_URL || "http://localhost:8000",
 
   /**
    * Timeout para requisições à API (em ms)
    * Default: 5 segundos
    */
-  CATALOG_API_TIMEOUT: parseInt(process.env.CATALOG_API_TIMEOUT || '5000', 10),
+  CATALOG_API_TIMEOUT: parseInt(process.env.CATALOG_API_TIMEOUT || "5000", 10),
 
   /**
    * Número de tentativas em caso de falha
    * Default: 3 tentativas
    */
-  CATALOG_API_RETRY_ATTEMPTS: parseInt(process.env.CATALOG_API_RETRY_ATTEMPTS || '3', 10),
+  CATALOG_API_RETRY_ATTEMPTS: parseInt(
+    process.env.CATALOG_API_RETRY_ATTEMPTS || "3",
+    10,
+  ),
 
   /**
    * Delay entre tentativas (em ms)
    * Default: 1 segundo
    */
-  CATALOG_API_RETRY_DELAY: parseInt(process.env.CATALOG_API_RETRY_DELAY || '1000', 10),
+  CATALOG_API_RETRY_DELAY: parseInt(
+    process.env.CATALOG_API_RETRY_DELAY || "1000",
+    10,
+  ),
+
+  // ============================================
+  // AUTH Configuration
+  // ============================================
+
+  /**
+   * URL do frontend (Next.js) onde o JWKS é exposto
+   * Usado para validar JWTs via /api/auth/jwks
+   */
+  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
 
   // ============================================
   // LLM Configuration
@@ -41,7 +57,7 @@ export const env = {
   /**
    * Modelo de LLM a ser usado
    */
-  MODEL: process.env.MODEL || 'github-models/openai/gpt-4.1-mini',
+  MODEL: process.env.MODEL || "github-models/openai/gpt-4.1-mini",
 
   /**
    * Token do GitHub para acessar GitHub Models
@@ -55,12 +71,12 @@ export const env = {
   /**
    * Ambiente atual (development, production, test)
    */
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV: process.env.NODE_ENV || "development",
 
   /**
    * Se true, loga informações extras de debug
    */
-  DEBUG: process.env.DEBUG === 'true',
+  DEBUG: process.env.DEBUG === "true",
 } as const;
 
 /**
@@ -71,20 +87,20 @@ export function validateEnv(): void {
   const warnings: string[] = [];
 
   if (!env.GITHUB_TOKEN) {
-    warnings.push('GITHUB_TOKEN não configurado - Agent pode não funcionar');
+    warnings.push("GITHUB_TOKEN não configurado - Agent pode não funcionar");
   }
 
-  if (env.CATALOG_API_URL === 'http://localhost:8000') {
-    warnings.push('CATALOG_API_URL usando default (localhost:8000)');
+  if (env.CATALOG_API_URL === "http://localhost:8000") {
+    warnings.push("CATALOG_API_URL usando default (localhost:8000)");
   }
 
   if (warnings.length > 0) {
-    console.warn('⚠️  Avisos de configuração:');
-    warnings.forEach(w => console.warn(`   - ${w}`));
+    console.warn("⚠️  Avisos de configuração:");
+    warnings.forEach((w) => console.warn(`   - ${w}`));
   }
 
   if (env.DEBUG) {
-    console.log('🔧 Configuração carregada:', {
+    console.log("🔧 Configuração carregada:", {
       CATALOG_API_URL: env.CATALOG_API_URL,
       CATALOG_API_TIMEOUT: env.CATALOG_API_TIMEOUT,
       MODEL: env.MODEL,

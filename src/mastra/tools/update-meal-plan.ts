@@ -11,11 +11,7 @@ const updateMealPlanToolInput = z.object({
     .max(100)
     .optional()
     .describe("Novo nome do plano"),
-  description: z
-    .string()
-    .max(500)
-    .optional()
-    .describe("Nova descrição"),
+  description: z.string().max(500).optional().describe("Nova descrição"),
   daily_calories: z
     .number()
     .positive()
@@ -36,10 +32,7 @@ const updateMealPlanToolInput = z.object({
     .positive()
     .optional()
     .describe("Nova meta de carboidratos"),
-  meals: z
-    .array(z.record(z.unknown()))
-    .optional()
-    .describe("Novas refeições"),
+  meals: z.array(z.record(z.unknown())).optional().describe("Novas refeições"),
 });
 
 const updateMealPlanToolOutput = z.object({
@@ -60,8 +53,14 @@ export const updateMealPlanTool = createTool({
   execute: async (inputData, executionContext) => {
     const { plan_id, ...updates } = inputData;
 
-    // Resolve user ID from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Resolve user ID and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     if (userId === "anonymous") {
       throw new Error(
@@ -74,7 +73,13 @@ export const updateMealPlanTool = createTool({
     );
 
     try {
-      const result = await updateMealPlan(plan_id, userId, updates);
+      const result = await updateMealPlan(
+        plan_id,
+        userId,
+        updates,
+        undefined,
+        authToken,
+      );
 
       console.log(
         `✅ [Tool:updateMealPlan] Plano atualizado: "${result.plan_name}"`,

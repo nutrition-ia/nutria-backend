@@ -63,13 +63,22 @@ export const getDailySummaryTool = createTool({
     // Desestrutura parâmetros do inputData
     const { date } = inputData;
 
-    // Get user_id from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Get user_id and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
-    console.log("📈 [Tool:getDailySummary] Obtendo resumo para usuário:", userId);
-    console.log("Data:", date || 'hoje');
+    console.log(
+      "📈 [Tool:getDailySummary] Obtendo resumo para usuário:",
+      userId,
+    );
+    console.log("Data:", date || "hoje");
 
-    const result = await getDailySummary(userId, date);
+    const result = await getDailySummary(userId, date, undefined, authToken);
 
     return {
       date: result.date,

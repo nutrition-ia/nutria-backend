@@ -1,17 +1,18 @@
-import { Mastra } from '@mastra/core/mastra';
-import { registerApiRoute } from '@mastra/core/server';
-import { MASTRA_RESOURCE_ID_KEY } from '@mastra/core/request-context';
-import { toAISdkStream } from '@mastra/ai-sdk';
-import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
-import { PinoLogger } from '@mastra/loggers';
-import { nutritionAnalystAgent } from './agents/nutrition-analyst';
-import { handleAuth, handleMe } from '../lib/auth-routes';
-import { getUserProfileFromDB } from './utils/user-profile-loader';
+import { Mastra } from "@mastra/core/mastra";
+import { registerApiRoute } from "@mastra/core/server";
+import {
+  MASTRA_RESOURCE_ID_KEY,
+  MASTRA_THREAD_ID_KEY,
+} from "@mastra/core/request-context";
+import { toAISdkStream } from "@mastra/ai-sdk";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { PinoLogger } from "@mastra/loggers";
+import { nutritionAnalystAgent } from "./agents/nutrition-analyst";
+import { verifyJwt, extractBearerToken } from "../lib/jwt-auth";
+import { getUserProfileFromDB } from "./utils/user-profile-loader";
 import { userProfileToContext } from "../mastra/config/memory";
-import { sharedStorage } from './config/storage';
-import { getObservabilityConfig } from './config/observabilityOptions';
-
-
+import { sharedStorage } from "./config/storage";
+import { getObservabilityConfig } from "./config/observabilityOptions";
 
 export const mastra = new Mastra({
   storage: sharedStorage,
@@ -20,42 +21,48 @@ export const mastra = new Mastra({
     nutritionAnalystAgent,
   },
   logger: new PinoLogger({
-    name: 'NutriAI',
-    level: 'info',
+    name: "NutriAI",
+    level: "info",
   }),
   observability: getObservabilityConfig(),
   server: {
     apiRoutes: [
-      // Auth routes - todas as variações
-      registerApiRoute('/auth/sign-up', { method: 'POST', handler: handleAuth }),
-      registerApiRoute('/auth/sign-in/email', { method: 'POST', handler: handleAuth }),
-      registerApiRoute('/auth/sign-out', { method: 'POST', handler: handleAuth }),
-      registerApiRoute('/auth/get-session', { method: 'GET', handler: handleAuth }),
-      registerApiRoute('/auth/session', { method: 'GET', handler: handleAuth }),
-      registerApiRoute('/me', { method: 'GET', handler: handleMe }),
-
-      // Rota de chat
-      registerApiRoute('/chat', {
-        method: 'POST',
+      registerApiRoute("/chat", {
+        method: "POST",
         handler: async (c) => {
           try {
+            // Valida JWT do header Authorization
+            const token = extractBearerToken(c.req.header("Authorization"));
+            if (!token) {
+              return c.json(
+                {
+                  error: "Authorization header com Bearer token é obrigatório",
+                },
+                401,
+              );
+            }
+
+            let jwtPayload;
+            try {
+              jwtPayload = await verifyJwt(token);
+            } catch (err) {
+              console.error("❌ JWT verification failed:", err);
+              return c.json({ error: "Token inválido ou expirado" }, 401);
+            }
+
+            const userId = jwtPayload.sub;
+            const userEmail = jwtPayload.email;
+
             const { messages } = await c.req.json();
 
             if (!messages || !Array.isArray(messages)) {
               return c.json(
                 { error: 'Campo "messages" é obrigatório e deve ser um array' },
-                400
+                400,
               );
             }
 
-            // Extrai informações do usuário dos headers
-            const userId = c.req.header('X-User-Id');
-            const userEmail = c.req.header('X-User-Email');
-            if(!userId) {
-              return c.json({ error: 'Header "X-User-Id" é obrigatório' }, 400);
-            }
-
-            // Tenta carregar perfil do usuário (opcional)
+            // Tenta carregar perfil do usuário
             const userProfile = await getUserProfileFromDB(userId);
             const contextMessages = [];
 
@@ -63,59 +70,72 @@ export const mastra = new Mastra({
               contextMessages.push(userProfileToContext(userProfile));
               console.log(`✅ [Chat] Usuário ${userId} com perfil carregado`);
             } else {
-              console.log(`⚠️ [Chat] Usuário ${userId} sem perfil - continuando sem personalização`);
+              console.log(
+                `⚠️ [Chat] Usuário ${userId} sem perfil - continuando sem personalização`,
+              );
               contextMessages.push({
-                role: 'system' as const,
-                content: 'SISTEMA: Este usuario ainda nao tem um perfil nutricional cadastrado.'
+                role: "system" as const,
+                content:
+                  "SISTEMA: O usuário está autenticado (logado) mas ainda não tem um perfil nutricional cadastrado. Sugira criar um perfil usando a tool create_user_profile. NÃO diga que o usuário não está autenticado — ele ESTÁ logado.",
               });
             }
 
-            console.log('📥 Mastra received:', JSON.stringify({
-              userId,
-              userEmail,
-              messageCount: messages.length,
-            }, null, 2));
+            console.log(
+              "📥 Mastra received:",
+              JSON.stringify(
+                {
+                  userId,
+                  userEmail,
+                  messageCount: messages.length,
+                },
+                null,
+                2,
+              ),
+            );
 
-            // Configura o resourceId no requestContext para que as tools possam acessá-lo
-            const requestContext = c.get('requestContext');
+            // Configura contexto do request para que tools possam acessar userId e JWT
+            const requestContext = c.get("requestContext");
             requestContext.set(MASTRA_RESOURCE_ID_KEY, userId);
+            requestContext.set(MASTRA_THREAD_ID_KEY, `chat-${userId}`);
+            requestContext.set("jwt_token", token);
 
-            // Usa o agente Mastra (que já funciona com GitHub Models)
-            const mastra = c.get('mastra');
-            const nutritionAgent = mastra.getAgent('nutritionAnalystAgent');
+            const mastra = c.get("mastra");
+            const nutritionAgent = mastra.getAgent("nutritionAnalystAgent");
 
             if (!nutritionAgent) {
-              return c.json({ error: 'Agent não encontrado' }, 500);
+              return c.json({ error: "Agent não encontrado" }, 500);
             }
 
-            // Stream do Mastra Agent
             const result = await nutritionAgent.stream(messages, {
               context: contextMessages,
+              resourceId: userId,
+              threadId: `chat-${userId}`,
+              requestContext,
             });
 
-            // Converte para formato AI SDK
             const uiMessageStream = createUIMessageStream({
               originalMessages: messages,
               execute: async ({ writer }) => {
-                for await (const part of toAISdkStream(result, { from: 'agent' })) {
+                for await (const part of toAISdkStream(result, {
+                  from: "agent",
+                })) {
                   await writer.write(part);
                 }
               },
             });
 
-            // Retorna como response compatível com useChat
             return createUIMessageStreamResponse({
               stream: uiMessageStream,
             });
-
           } catch (error) {
-            console.error('❌ Erro no endpoint /chat:', error);
+            console.error("❌ Erro no endpoint /chat:", error);
             return c.json(
               {
-                error: 'Erro ao processar a requisição',
-                details: error instanceof Error ? error.message : 'Erro desconhecido',
+                error: "Erro ao processar a requisição",
+                details:
+                  error instanceof Error ? error.message : "Erro desconhecido",
               },
-              500
+              500,
             );
           }
         },

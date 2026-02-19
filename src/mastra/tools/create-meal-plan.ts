@@ -4,20 +4,13 @@ import { createMealPlan } from "../clients/catalog-client";
 import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const createMealPlanToolInput = z.object({
-  plan_name: z
-    .string()
-    .min(1)
-    .max(100)
-    .describe("Nome do plano alimentar"),
+  plan_name: z.string().min(1).max(100).describe("Nome do plano alimentar"),
   description: z
     .string()
     .max(500)
     .optional()
     .describe("Descrição do plano alimentar"),
-  daily_calories: z
-    .number()
-    .positive()
-    .describe("Meta diária de calorias"),
+  daily_calories: z.number().positive().describe("Meta diária de calorias"),
   daily_protein_g: z
     .number()
     .positive()
@@ -63,8 +56,14 @@ export const createMealPlanTool = createTool({
       meals = [],
     } = inputData;
 
-    // Resolve user ID from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Resolve user ID and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     if (userId === "anonymous") {
       throw new Error(
@@ -72,20 +71,26 @@ export const createMealPlanTool = createTool({
       );
     }
 
-    console.log(`📋 [Tool:createMealPlan] Criando plano para usuário: ${userId}`);
+    console.log(
+      `📋 [Tool:createMealPlan] Criando plano para usuário: ${userId}`,
+    );
 
     try {
-      const result = await createMealPlan({
-        user_id: userId,
-        plan_name,
-        description,
-        daily_calories,
-        daily_protein_g,
-        daily_fat_g,
-        daily_carbs_g,
-        created_by: "ai", // Marca como criado por IA
-        meals,
-      });
+      const result = await createMealPlan(
+        {
+          user_id: userId,
+          plan_name,
+          description,
+          daily_calories,
+          daily_protein_g,
+          daily_fat_g,
+          daily_carbs_g,
+          created_by: "ai",
+          meals,
+        },
+        undefined,
+        authToken,
+      );
 
       console.log(`✅ [Tool:createMealPlan] Plano criado: ${result.id}`);
 
@@ -101,9 +106,7 @@ export const createMealPlanTool = createTool({
         error instanceof Error ? error.message : "Erro desconhecido";
       console.error(`❌ [Tool:createMealPlan] Erro: ${errorMessage}`);
 
-      throw new Error(
-        `Erro ao criar plano alimentar: ${errorMessage}`,
-      );
+      throw new Error(`Erro ao criar plano alimentar: ${errorMessage}`);
     }
   },
 });

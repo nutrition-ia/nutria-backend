@@ -491,14 +491,20 @@ const postRequest = <T>(
   endpoint: string,
   body: unknown,
   config: ClientConfig,
+  authToken?: string,
 ): Promise<T> => {
   const url = `${config.baseUrl}${endpoint}`;
+  const headers: Record<string, string> = {};
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
 
   return executeWithRetry<T>(
     url,
     {
       method: "POST",
       body: JSON.stringify(body),
+      headers,
     },
     config,
   );
@@ -517,6 +523,7 @@ const postRequest = <T>(
 export const searchFoods = async (
   request: SearchFoodsRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<SearchFoodsResponse> => {
   console.log(`🔍 [CatalogClient] Buscando alimentos: "${request.query}"`);
 
@@ -528,6 +535,7 @@ export const searchFoods = async (
       filters: request.filters ?? {},
     },
     config,
+    authToken,
   );
 
   console.log(`✅ [CatalogClient] Encontrados ${response.count} alimentos`);
@@ -550,6 +558,7 @@ export const searchFoods = async (
 export const searchFoodsByEmbedding = async (
   request: SearchFoodsRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<SimilarFoodsResponse> => {
   console.log(`🧠 [CatalogClient] Busca semântica: "${request.query}"`);
 
@@ -561,9 +570,12 @@ export const searchFoodsByEmbedding = async (
       filters: request.filters ?? {},
     },
     config,
+    authToken,
   );
 
-  console.log(`✅ [CatalogClient] Encontrados ${response.count} alimentos similares`);
+  console.log(
+    `✅ [CatalogClient] Encontrados ${response.count} alimentos similares`,
+  );
 
   return response;
 };
@@ -580,6 +592,7 @@ export const searchFoodsByEmbedding = async (
 export const calculateNutrition = async (
   foods: NutritionItem[],
   config = defaultConfig,
+  authToken?: string,
 ): Promise<CalculateNutritionResponse> => {
   console.log(
     `🧮 [CatalogClient] Calculando nutrição para ${foods.length} alimentos`,
@@ -589,6 +602,7 @@ export const calculateNutrition = async (
     "/api/v1/nutrition/calculate",
     { foods },
     config,
+    authToken,
   );
 
   console.log(
@@ -612,6 +626,7 @@ export const calculateNutrition = async (
 export const findSimilarFoods = async (
   request: SimilarFoodRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<SimilarFoodsResponse> => {
   console.log(
     `🔄 [CatalogClient] Buscando alimentos similares para: "${request.food_id}"`,
@@ -626,6 +641,7 @@ export const findSimilarFoods = async (
       tolerance: request.tolerance ?? 0.3,
     },
     config,
+    authToken,
   );
 
   console.log(
@@ -648,6 +664,7 @@ export const findSimilarFoods = async (
 export const getRecommendations = async (
   request: RecommendationRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<RecommendationResponse> => {
   console.log(
     `🎯 [CatalogClient] Buscando recomendações para usuário: "${request.user_id}"`,
@@ -661,6 +678,7 @@ export const getRecommendations = async (
       ...(request.category && { category: request.category }),
     },
     config,
+    authToken,
   );
 
   console.log(`✅ [CatalogClient] Encontradas ${response.count} recomendações`);
@@ -684,6 +702,7 @@ export const getRecommendations = async (
 export const logMeal = async (
   request: LogMealRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<MealLogResponse> => {
   console.log(
     `📊 [CatalogClient] Registrando ${request.meal_type} com ${request.foods.length} alimentos`,
@@ -693,6 +712,7 @@ export const logMeal = async (
     "/api/v1/tracking/meals/log",
     request,
     config,
+    authToken,
   );
 
   console.log(
@@ -715,19 +735,22 @@ export const getDailySummary = async (
   userId: string,
   date?: string,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<DailySummaryResponse> => {
   console.log(`📈 [CatalogClient] Obtendo resumo diário para ${userId}`);
 
   const params = new URLSearchParams({
-    user_id: userId,
-    ...(date && { date }),
+    ...(date && { target_date: date }),
   });
 
   const url = `${config.baseUrl}/api/v1/tracking/summary/daily?${params}`;
 
+  const headers: Record<string, string> = {};
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
   const result = await executeRequest<DailySummaryResponse>(
     url,
-    { method: "GET" },
+    { method: "GET", headers },
     config.timeout,
   );
 
@@ -755,21 +778,24 @@ export const getWeeklyStats = async (
   userId: string,
   days = 7,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<WeeklyStatsResponse> => {
   console.log(
     `📊 [CatalogClient] Obtendo estatísticas de ${days} dias para ${userId}`,
   );
 
   const params = new URLSearchParams({
-    user_id: userId,
     days: days.toString(),
   });
 
   const url = `${config.baseUrl}/api/v1/tracking/stats/weekly?${params}`;
 
+  const headers: Record<string, string> = {};
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
   const result = await executeRequest<WeeklyStatsResponse>(
     url,
-    { method: "GET" },
+    { method: "GET", headers },
     config.timeout,
   );
 
@@ -801,15 +827,17 @@ export const getWeeklyStats = async (
 export const createMealPlan = async (
   request: CreateMealPlanRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<MealPlan> => {
   console.log(
     `📋 [CatalogClient] Criando plano alimentar: "${request.plan_name}"`,
   );
 
   const response = await postRequest<MealPlan>(
-    `/api/v1/meal-plans?user_id=${request.user_id}`,
+    `/api/v1/meal-plans`,
     request,
     config,
+    authToken,
   );
 
   console.log(`✅ [CatalogClient] Plano criado: ${response.id}`);
@@ -828,22 +856,25 @@ export const listMealPlans = async (
   page = 1,
   pageSize = 10,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<MealPlanListResponse> => {
   console.log(
     `📋 [CatalogClient] Listando planos alimentares para usuário: ${userId}`,
   );
 
   const params = new URLSearchParams({
-    user_id: userId,
     page: page.toString(),
     page_size: pageSize.toString(),
   });
 
   const url = `${config.baseUrl}/api/v1/meal-plans?${params}`;
 
+  const headers: Record<string, string> = {};
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
   const result = await executeRequest<MealPlanListResponse>(
     url,
-    { method: "GET" },
+    { method: "GET", headers },
     config.timeout,
   );
 
@@ -868,15 +899,18 @@ export const getMealPlan = async (
   planId: string,
   userId: string,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<MealPlan> => {
   console.log(`📋 [CatalogClient] Obtendo plano alimentar: ${planId}`);
 
-  const params = new URLSearchParams({ user_id: userId });
-  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}?${params}`;
+  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}`;
+
+  const headers: Record<string, string> = {};
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
   const result = await executeRequest<MealPlan>(
     url,
-    { method: "GET" },
+    { method: "GET", headers },
     config.timeout,
   );
 
@@ -884,9 +918,7 @@ export const getMealPlan = async (
     throw new Error(result.error.message);
   }
 
-  console.log(
-    `✅ [CatalogClient] Plano obtido: "${result.data.plan_name}"`,
-  );
+  console.log(`✅ [CatalogClient] Plano obtido: "${result.data.plan_name}"`);
 
   return result.data;
 };
@@ -904,18 +936,23 @@ export const updateMealPlan = async (
   userId: string,
   updates: UpdateMealPlanRequest,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<MealPlan> => {
   console.log(`📋 [CatalogClient] Atualizando plano alimentar: ${planId}`);
 
-  const params = new URLSearchParams({ user_id: userId });
-  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}?${params}`;
+  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
   const result = await executeRequest<MealPlan>(
     url,
     {
       method: "PUT",
       body: JSON.stringify(updates),
-      headers: { "Content-Type": "application/json" },
+      headers,
     },
     config.timeout,
   );
@@ -939,15 +976,18 @@ export const deleteMealPlan = async (
   planId: string,
   userId: string,
   config = defaultConfig,
+  authToken?: string,
 ): Promise<void> => {
   console.log(`📋 [CatalogClient] Deletando plano alimentar: ${planId}`);
 
-  const params = new URLSearchParams({ user_id: userId });
-  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}?${params}`;
+  const url = `${config.baseUrl}/api/v1/meal-plans/${planId}`;
+
+  const headers: Record<string, string> = {};
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
   const result = await executeRequest<void>(
     url,
-    { method: "DELETE" },
+    { method: "DELETE", headers },
     config.timeout,
   );
 

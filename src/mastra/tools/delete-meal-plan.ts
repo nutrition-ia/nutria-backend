@@ -23,8 +23,14 @@ export const deleteMealPlanTool = createTool({
   execute: async (inputData, executionContext) => {
     const { plan_id } = inputData;
 
-    // Resolve user ID from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Resolve user ID and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     if (userId === "anonymous") {
       throw new Error(
@@ -37,7 +43,7 @@ export const deleteMealPlanTool = createTool({
     );
 
     try {
-      await deleteMealPlan(plan_id, userId);
+      await deleteMealPlan(plan_id, userId, undefined, authToken);
 
       console.log(`✅ [Tool:deleteMealPlan] Plano deletado com sucesso`);
 

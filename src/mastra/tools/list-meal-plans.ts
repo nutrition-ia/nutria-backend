@@ -4,12 +4,7 @@ import { listMealPlans } from "../clients/catalog-client";
 import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
 const listMealPlansToolInput = z.object({
-  page: z
-    .number()
-    .int()
-    .min(1)
-    .default(1)
-    .describe("Número da página"),
+  page: z.number().int().min(1).default(1).describe("Número da página"),
   page_size: z
     .number()
     .int()
@@ -44,8 +39,14 @@ export const listMealPlansTool = createTool({
   execute: async (inputData, executionContext) => {
     const { page = 1, page_size = 10 } = inputData;
 
-    // Resolve user ID from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Resolve user ID and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     if (userId === "anonymous") {
       throw new Error(
@@ -58,7 +59,13 @@ export const listMealPlansTool = createTool({
     );
 
     try {
-      const result = await listMealPlans(userId, page, page_size);
+      const result = await listMealPlans(
+        userId,
+        page,
+        page_size,
+        undefined,
+        authToken,
+      );
 
       const plans = result.plans.map((p) => ({
         id: p.id,
@@ -68,9 +75,7 @@ export const listMealPlansTool = createTool({
         created_at: p.created_at,
       }));
 
-      console.log(
-        `✅ [Tool:listMealPlans] Encontrados ${result.total} planos`,
-      );
+      console.log(`✅ [Tool:listMealPlans] Encontrados ${result.total} planos`);
 
       return {
         plans,
