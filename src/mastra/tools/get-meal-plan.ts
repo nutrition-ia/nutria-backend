@@ -31,8 +31,14 @@ export const getMealPlanTool = createTool({
   execute: async (inputData, executionContext) => {
     const { plan_id } = inputData;
 
-    // Resolve user ID from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Resolve user ID and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     if (userId === "anonymous") {
       throw new Error(
@@ -45,9 +51,11 @@ export const getMealPlanTool = createTool({
     );
 
     try {
-      const plan = await getMealPlan(plan_id, userId);
+      const plan = await getMealPlan(plan_id, userId, undefined, authToken);
 
-      console.log(`✅ [Tool:getMealPlan] Plano encontrado: "${plan.plan_name}"`);
+      console.log(
+        `✅ [Tool:getMealPlan] Plano encontrado: "${plan.plan_name}"`,
+      );
 
       return {
         id: plan.id,

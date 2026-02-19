@@ -22,10 +22,7 @@ const logMealToolInput = z.object({
     )
     .min(1)
     .describe("Lista de alimentos consumidos"),
-  notes: z
-    .string()
-    .optional()
-    .describe("Notas sobre a refeição (opcional)"),
+  notes: z.string().optional().describe("Notas sobre a refeição (opcional)"),
 });
 
 export const logMealTool = createTool({
@@ -49,18 +46,28 @@ export const logMealTool = createTool({
     // Desestrutura parâmetros do inputData
     const { meal_type, foods, notes } = inputData;
 
-    // Get user_id from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Get user_id and JWT from execution context
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     console.log("🍽️ [Tool:logMeal] Registrando refeição para usuário:", userId);
     console.log("Dados:", { meal_type, num_foods: foods.length });
 
-    const result = await logMeal({
-      user_id: userId,
-      meal_type,
-      foods,
-      notes,
-    });
+    const result = await logMeal(
+      {
+        user_id: userId,
+        meal_type,
+        foods,
+        notes,
+      },
+      undefined,
+      authToken,
+    );
 
     return {
       id: result.id,

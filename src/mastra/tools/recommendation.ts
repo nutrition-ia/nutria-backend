@@ -54,19 +54,29 @@ export const recommendationTool = createTool({
   execute: async (inputData, executionContext) => {
     const { limit = 20, category } = inputData;
 
-    // Pega user_id do requestContext (definido no endpoint /chat)
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Pega user_id e JWT do requestContext (definido no endpoint /chat)
+    const userId =
+      (executionContext?.requestContext?.get(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) || "anonymous";
+    const authToken = executionContext?.requestContext?.get("jwt_token") as
+      | string
+      | undefined;
 
     logger.info(
       `🎯 [Tool] Buscando recomendações para usuário: "${userId}"${category ? ` (categoria: ${category})` : ""}`,
     );
 
     try {
-      const response = await getRecommendations({
-        user_id: userId,
-        limit,
-        ...(category && { category }),
-      });
+      const response = await getRecommendations(
+        {
+          user_id: userId,
+          limit,
+          ...(category && { category }),
+        },
+        undefined,
+        authToken,
+      );
 
       const foods = response.foods.map(formatRecommendedFood);
 

@@ -7,13 +7,17 @@ import { z } from "zod";
 import { invalidateUserProfileCache } from "../utils/user-profile-loader";
 import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 
-const CATALOG_API_URL = process.env.CATALOG_API_URL || 'http://localhost:8000';
+const CATALOG_API_URL = process.env.CATALOG_API_URL || "http://localhost:8000";
 
 const createUserProfileToolInput = z.object({
   name: z.string().describe("Nome do usuário"),
   age: z.number().int().min(1).max(120).describe("Idade do usuário"),
   weight_kg: z.number().positive().optional().describe("Peso em kg (opcional)"),
-  height_cm: z.number().positive().optional().describe("Altura em cm (opcional)"),
+  height_cm: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Altura em cm (opcional)"),
   activity_level: z
     .enum(["sedentary", "light", "moderate", "active", "very_active"])
     .optional()
@@ -25,7 +29,9 @@ const createUserProfileToolInput = z.object({
   dietary_restrictions: z
     .array(z.string())
     .optional()
-    .describe('Restrições alimentares (ex: ["vegetarian", "vegan", "gluten-free"])'),
+    .describe(
+      'Restrições alimentares (ex: ["vegetarian", "vegan", "gluten-free"])',
+    ),
   allergies: z
     .array(z.string())
     .optional()
@@ -37,7 +43,9 @@ const createUserProfileToolInput = z.object({
   preferred_cuisines: z
     .array(z.string())
     .optional()
-    .describe('Culinárias preferidas (ex: ["brazilian", "italian", "japanese"])'),
+    .describe(
+      'Culinárias preferidas (ex: ["brazilian", "italian", "japanese"])',
+    ),
 });
 
 export const createUserProfileTool = createTool({
@@ -81,8 +89,44 @@ export const createUserProfileTool = createTool({
       preferred_cuisines = [],
     } = inputData;
 
-    // Get user_id from execution context
-    const userId = (executionContext?.requestContext?.get(MASTRA_RESOURCE_ID_KEY) as string) || 'anonymous';
+    // Get user_id and JWT from execution context
+    console.log(
+      "🔍 [Tool:createUserProfile] executionContext keys:",
+      Object.keys(executionContext || {}),
+    );
+    console.log(
+      "🔍 [Tool:createUserProfile] requestContext:",
+      executionContext?.requestContext,
+    );
+    console.log(
+      "🔍 [Tool:createUserProfile] resourceId:",
+      executionContext?.resourceId,
+    );
+    console.log(
+      "🔍 [Tool:createUserProfile] MASTRA_RESOURCE_ID_KEY value:",
+      executionContext?.requestContext?.get?.(MASTRA_RESOURCE_ID_KEY),
+    );
+    console.log(
+      "🔍 [Tool:createUserProfile] jwt_token exists:",
+      !!executionContext?.requestContext?.get?.("jwt_token"),
+    );
+
+    // Try multiple ways to get userId
+    const userId =
+      (executionContext?.requestContext?.get?.(
+        MASTRA_RESOURCE_ID_KEY,
+      ) as string) ||
+      (executionContext as any)?.resourceId ||
+      "anonymous";
+    const authToken = executionContext?.requestContext?.get?.("jwt_token") as
+      | string
+      | undefined;
+
+    console.log("🔍 [Tool:createUserProfile] resolved userId:", userId);
+    console.log(
+      "🔍 [Tool:createUserProfile] resolved authToken:",
+      authToken ? "present" : "missing",
+    );
 
     if (!userId || userId === "anonymous") {
       return {
@@ -92,16 +136,24 @@ export const createUserProfileTool = createTool({
       };
     }
 
-    console.log("👤 [Tool:createUserProfile] Criando perfil para usuário:", userId);
+    console.log(
+      "👤 [Tool:createUserProfile] Criando perfil para usuário:",
+      userId,
+    );
     console.log("Dados:", { name, age, weight_kg, height_cm });
 
     try {
       // Cria o perfil via API do Catalog
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+
       const response = await fetch(`${CATALOG_API_URL}/api/v1/users/profiles`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           user_id: userId,
           name,
