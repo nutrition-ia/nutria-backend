@@ -21,12 +21,13 @@ export interface UserProfile {
   age: number;
   weight_kg?: number;
   height_cm?: number;
-  activity_level?: "weight_gain" | "weight_loss" | "mantain";
-  diet_goal?: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  gender?: string;
+  activity_level?: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  diet_goal?: "weight_loss" | "weight_gain" | "maintain";
   dietary_restrictions?: string[];
   allergies?: string[];
   disliked_foods?: string[];
-  preferred_cousines?: string[];
+  preferred_cuisines?: string[];
 }
 
 export interface MealPlan {

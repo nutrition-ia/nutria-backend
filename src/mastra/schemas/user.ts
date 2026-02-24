@@ -4,22 +4,22 @@ export const userSchema = z.object({
   id: z.string(),
   user_id: z.string(),
   name: z.string(),
-  agr: z.number(),
-  wheight_kg: z.number().optional(),
+  age: z.number(),
+  weight_kg: z.number().optional(),
   height_cm: z.number().optional(),
   gender: z.string().optional(),
-  activity_level: z.enum(["WEIGHT_LOSS", "WEIGHT_GAIN", "MANTAIN"]),
-  diet_goal: z.enum([
-    "SEDENTARY",
-    "LIGHT",
-    "MODERATE",
-    "ACTIVE",
-    "VERY_ACTIVE",
+  activity_level: z.enum([
+    "sedentary",
+    "light",
+    "moderate",
+    "active",
+    "very_active",
   ]),
+  diet_goal: z.enum(["weight_loss", "weight_gain", "maintain"]),
   dietary_restrictions: z.array(z.string()).optional(),
   allergies: z.array(z.string()).optional(),
   disliked_foods: z.array(z.string()).optional(),
-  preferred_cousines: z.array(z.string()).optional(),
+  preferred_cuisines: z.array(z.string()).optional(),
 });
 
 export const mealSchema = z.object({
