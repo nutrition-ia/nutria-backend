@@ -71,7 +71,7 @@ export const calculateNutritionTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
 
-      logger.error(`❌ [Tool] Erro no cálculo:, ${errorMessage}`);
+      logger.error(`❌ [Tool] Erro no cálculo: ${errorMessage}`);
 
       return {
         success: false,

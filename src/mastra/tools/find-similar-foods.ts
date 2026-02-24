@@ -92,7 +92,7 @@ export const findSimilarFoodsTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
 
-      logger.error(`❌ [Tool] Erro na busca de similares:, ${errorMessage}`);
+      logger.error(`❌ [Tool] Erro na busca de similares: ${errorMessage}`);
 
       return {
         success: false,

@@ -60,7 +60,7 @@ export const searchFoodCatalogTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
 
-      logger.error(`❌ [Tool] Erro na busca:, ${errorMessage}`);
+      logger.error(`❌ [Tool] Erro na busca: ${errorMessage}`);
 
       return {
         success: false,
