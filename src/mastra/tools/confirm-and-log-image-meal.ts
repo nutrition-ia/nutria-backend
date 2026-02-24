@@ -147,29 +147,37 @@ export const confirmAndLogImageMealTool = createTool({
     // Registra a refeição completa
     console.log(`   💾 Registrando ${foodsToLog.length} alimento(s)...`);
 
-    const mealLog = await logMeal(
-      {
-        user_id: userId,
-        meal_type,
-        foods: foodsToLog,
-        notes: notes || "Registrado via análise de imagem",
-      },
-      undefined,
-      authToken,
-    );
+    try {
+      const mealLog = await logMeal(
+        {
+          user_id: userId,
+          meal_type,
+          foods: foodsToLog,
+          notes: notes || "Registrado via análise de imagem",
+        },
+        undefined,
+        authToken,
+      );
 
-    console.log(
-      `   ✅ Refeição registrada! ID: ${mealLog.id}, Calorias: ${mealLog.total_calories} kcal`,
-    );
+      console.log(
+        `   ✅ Refeição registrada! ID: ${mealLog.id}, Calorias: ${mealLog.total_calories} kcal`,
+      );
 
-    return {
-      meal_log_id: mealLog.id,
-      total_calories: mealLog.total_calories,
-      total_protein_g: mealLog.total_protein_g,
-      total_carbs_g: mealLog.total_carbs_g,
-      total_fat_g: mealLog.total_fat_g,
-      foods_logged: foodsToLog.length,
-      catalog_matches: catalogMatches,
-    };
+      return {
+        meal_log_id: mealLog.id,
+        total_calories: mealLog.total_calories,
+        total_protein_g: mealLog.total_protein_g,
+        total_carbs_g: mealLog.total_carbs_g,
+        total_fat_g: mealLog.total_fat_g,
+        foods_logged: foodsToLog.length,
+        catalog_matches: catalogMatches,
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error(`❌ [Tool:confirmAndLogImageMeal] Erro ao registrar: ${msg}`);
+      throw new Error(
+        `Não foi possível registrar a refeição: ${msg}. Os alimentos foram identificados corretamente, mas houve um erro no registro.`,
+      );
+    }
   },
 });
