@@ -13,6 +13,9 @@ import { getUserProfileFromDB } from "./utils/user-profile-loader";
 import { userProfileToContext } from "../mastra/config/memory";
 import { sharedStorage } from "./config/storage";
 import { getObservabilityConfig } from "./config/observabilityOptions";
+import { validateEnv } from "./config/env";
+
+validateEnv();
 
 export const mastra = new Mastra({
   storage: sharedStorage,
@@ -108,8 +111,6 @@ export const mastra = new Mastra({
 
             const result = await nutritionAgent.stream(messages, {
               context: contextMessages,
-              resourceId: userId,
-              threadId: `chat-${userId}`,
               requestContext,
             });
 
