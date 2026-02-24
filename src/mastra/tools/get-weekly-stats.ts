@@ -5,7 +5,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getWeeklyStats } from "../clients/catalog-client";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
 
 const getWeeklyStatsToolInput = z.object({
   // user_id é obtido automaticamente do contexto (resourceId)
@@ -57,14 +57,7 @@ export const getWeeklyStatsTool = createTool({
     // Desestrutura parâmetros do inputData
     const { days = 7 } = inputData;
 
-    // Get user_id and JWT from execution context
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     console.log(
       "📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário:",

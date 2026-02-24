@@ -5,7 +5,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { logMeal } from "../clients/catalog-client";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
 
 const logMealToolInput = z.object({
   // user_id é obtido automaticamente do contexto (resourceId)
@@ -46,14 +46,7 @@ export const logMealTool = createTool({
     // Desestrutura parâmetros do inputData
     const { meal_type, foods, notes } = inputData;
 
-    // Get user_id and JWT from execution context
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     console.log("🍽️ [Tool:logMeal] Registrando refeição para usuário:", userId);
     console.log("Dados:", { meal_type, num_foods: foods.length });

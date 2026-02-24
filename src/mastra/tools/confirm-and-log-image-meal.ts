@@ -5,7 +5,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { searchFoodsByEmbedding, logMeal } from "../clients/catalog-client";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
 
 const confirmAndLogImageMealToolInput = z.object({
   meal_type: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Tipo"),
@@ -53,14 +53,7 @@ export const confirmAndLogImageMealTool = createTool({
   execute: async (inputData, executionContext) => {
     const { meal_type, detected_foods, notes } = inputData;
 
-    // Resolve user ID and JWT
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     if (userId === "anonymous") {
       throw new Error(
