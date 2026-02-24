@@ -78,22 +78,34 @@ export const getDailySummaryTool = createTool({
     );
     console.log("Data:", date || "hoje");
 
-    const result = await getDailySummary(userId, date, undefined, authToken);
-
-    return {
-      date: result.date,
-      num_meals: result.num_meals,
-      totals: result.totals,
-      targets: result.targets,
-      progress: result.progress,
-      meals: result.meals.map((meal) => ({
-        id: meal.id,
-        meal_type: meal.meal_type,
-        total_calories: meal.total_calories,
-        total_protein_g: meal.total_protein_g,
-        total_carbs_g: meal.total_carbs_g,
-        total_fat_g: meal.total_fat_g,
-      })),
-    };
+    try {
+      const result = await getDailySummary(userId, date, undefined, authToken);
+      return {
+        date: result.date,
+        num_meals: result.num_meals,
+        totals: result.totals,
+        targets: result.targets,
+        progress: result.progress,
+        meals: result.meals.map((meal) => ({
+          id: meal.id,
+          meal_type: meal.meal_type,
+          total_calories: meal.total_calories,
+          total_protein_g: meal.total_protein_g,
+          total_carbs_g: meal.total_carbs_g,
+          total_fat_g: meal.total_fat_g,
+        })),
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error(`❌ [Tool:getDailySummary] Erro: ${msg}`);
+      return {
+        date: date || new Date().toISOString().split("T")[0],
+        num_meals: 0,
+        totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+        targets: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+        progress: { calories_pct: 0, protein_pct: 0, carbs_pct: 0, fat_pct: 0 },
+        meals: [],
+      };
+    }
   },
 });
