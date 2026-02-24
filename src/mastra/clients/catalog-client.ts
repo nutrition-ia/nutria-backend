@@ -1033,6 +1033,57 @@ export const createUserProfile = async (
   return response;
 };
 
+export interface AnalyzeImageRequest {
+  image: string;
+  top_k_per_food?: number;
+  confidence_threshold?: number;
+}
+
+export interface ImageAnalysisMatch {
+  detected_name: string;
+  matches: Array<{
+    id: string;
+    name: string;
+    similarity: number;
+    category: string | null;
+    calories_per_100g: number | null;
+    serving_size_g: number;
+    serving_unit: string;
+    source: string;
+    is_verified: boolean;
+  }>;
+}
+
+export interface ImageAnalysisResponse {
+  success: boolean;
+  detected_foods: string[];
+  catalog_matches: ImageAnalysisMatch[];
+  total_detected: number;
+  total_catalog_matches: number;
+  message?: string;
+}
+
+export const analyzeImageWithDetic = async (
+  request: AnalyzeImageRequest,
+  config = defaultConfig,
+  authToken?: string,
+): Promise<ImageAnalysisResponse> => {
+  console.log(`📸 [CatalogClient] Analisando imagem com DETIC`);
+
+  const response = await postRequest<ImageAnalysisResponse>(
+    "/api/v1/foods/analyze",
+    request,
+    config,
+    authToken,
+  );
+
+  console.log(
+    `✅ [CatalogClient] DETIC: ${response.total_detected} alimento(s) detectado(s)`,
+  );
+
+  return response;
+};
+
 /**
  * Verifica se a API está disponível
  */
