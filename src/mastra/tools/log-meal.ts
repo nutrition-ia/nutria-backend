@@ -58,25 +58,38 @@ export const logMealTool = createTool({
     console.log("🍽️ [Tool:logMeal] Registrando refeição para usuário:", userId);
     console.log("Dados:", { meal_type, num_foods: foods.length });
 
-    const result = await logMeal(
-      {
-        user_id: userId,
+    try {
+      const result = await logMeal(
+        {
+          user_id: userId,
+          meal_type,
+          foods,
+          notes,
+        },
+        undefined,
+        authToken,
+      );
+      return {
+        id: result.id,
+        total_calories: result.total_calories,
+        total_protein_g: result.total_protein_g,
+        total_carbs_g: result.total_carbs_g,
+        total_fat_g: result.total_fat_g,
+        meal_type: result.meal_type,
+        num_foods: result.foods.length,
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error(`❌ [Tool:logMeal] Erro: ${msg}`);
+      return {
+        id: "",
+        total_calories: 0,
+        total_protein_g: 0,
+        total_carbs_g: 0,
+        total_fat_g: 0,
         meal_type,
-        foods,
-        notes,
-      },
-      undefined,
-      authToken,
-    );
-
-    return {
-      id: result.id,
-      total_calories: result.total_calories,
-      total_protein_g: result.total_protein_g,
-      total_carbs_g: result.total_carbs_g,
-      total_fat_g: result.total_fat_g,
-      meal_type: result.meal_type,
-      num_foods: result.foods.length,
-    };
+        num_foods: 0,
+      };
+    }
   },
 });
