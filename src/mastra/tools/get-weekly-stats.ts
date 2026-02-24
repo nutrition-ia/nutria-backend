@@ -72,21 +72,32 @@ export const getWeeklyStatsTool = createTool({
     );
     console.log("Dias:", days);
 
-    const result = await getWeeklyStats(userId, days, undefined, authToken);
-
-    return {
-      user_id: result.user_id,
-      num_days: result.stats.length,
-      averages: result.averages,
-      adherence_rate: result.adherence_rate,
-      stats: result.stats.map((stat) => ({
-        date: stat.date,
-        total_calories: stat.total_calories,
-        total_protein_g: stat.total_protein_g,
-        total_carbs_g: stat.total_carbs_g,
-        total_fat_g: stat.total_fat_g,
-        num_meals: stat.num_meals,
-      })),
-    };
+    try {
+      const result = await getWeeklyStats(userId, days, undefined, authToken);
+      return {
+        user_id: result.user_id,
+        num_days: result.stats.length,
+        averages: result.averages,
+        adherence_rate: result.adherence_rate,
+        stats: result.stats.map((stat) => ({
+          date: stat.date,
+          total_calories: stat.total_calories,
+          total_protein_g: stat.total_protein_g,
+          total_carbs_g: stat.total_carbs_g,
+          total_fat_g: stat.total_fat_g,
+          num_meals: stat.num_meals,
+        })),
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error(`❌ [Tool:getWeeklyStats] Erro: ${msg}`);
+      return {
+        user_id: userId,
+        num_days: 0,
+        averages: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+        adherence_rate: 0,
+        stats: [],
+      };
+    }
   },
 });
