@@ -5,9 +5,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { invalidateUserProfileCache } from "../utils/user-profile-loader";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
-
-const CATALOG_API_URL = process.env.CATALOG_API_URL || "http://localhost:8000";
+import { extractAuthContext } from "../utils/auth-context";
+import { createUserProfile } from "../clients/catalog-client";
 
 const createUserProfileToolInput = z.object({
   name: z.string().describe("Nome do usuário"),
@@ -90,43 +89,7 @@ export const createUserProfileTool = createTool({
     } = inputData;
 
     // Get user_id and JWT from execution context
-    console.log(
-      "🔍 [Tool:createUserProfile] executionContext keys:",
-      Object.keys(executionContext || {}),
-    );
-    console.log(
-      "🔍 [Tool:createUserProfile] requestContext:",
-      executionContext?.requestContext,
-    );
-    console.log(
-      "🔍 [Tool:createUserProfile] resourceId:",
-      executionContext?.resourceId,
-    );
-    console.log(
-      "🔍 [Tool:createUserProfile] MASTRA_RESOURCE_ID_KEY value:",
-      executionContext?.requestContext?.get?.(MASTRA_RESOURCE_ID_KEY),
-    );
-    console.log(
-      "🔍 [Tool:createUserProfile] jwt_token exists:",
-      !!executionContext?.requestContext?.get?.("jwt_token"),
-    );
-
-    // Try multiple ways to get userId
-    const userId =
-      (executionContext?.requestContext?.get?.(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) ||
-      (executionContext as any)?.resourceId ||
-      "anonymous";
-    const authToken = executionContext?.requestContext?.get?.("jwt_token") as
-      | string
-      | undefined;
-
-    console.log("🔍 [Tool:createUserProfile] resolved userId:", userId);
-    console.log(
-      "🔍 [Tool:createUserProfile] resolved authToken:",
-      authToken ? "present" : "missing",
-    );
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     if (!userId || userId === "anonymous") {
       return {
@@ -143,18 +106,8 @@ export const createUserProfileTool = createTool({
     console.log("Dados:", { name, age, weight_kg, height_cm });
 
     try {
-      // Cria o perfil via API do Catalog
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
-      }
-
-      const response = await fetch(`${CATALOG_API_URL}/api/v1/users/profiles`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
+      const profileData = await createUserProfile(
+        {
           user_id: userId,
           name,
           age,
@@ -166,30 +119,10 @@ export const createUserProfileTool = createTool({
           allergies,
           disliked_foods,
           preferred_cuisines,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ [Tool:createUserProfile] Erro na API:", errorText);
-
-        // Se já existe, retorna sucesso com mensagem apropriada
-        if (response.status === 400 && errorText.includes("já existe")) {
-          return {
-            success: true,
-            user_id: userId,
-            message:
-              "Perfil já existe para este usuário. Use a tool de atualização para modificar seus dados.",
-          };
-        }
-
-        return {
-          success: false,
-          message: `Erro ao criar perfil: ${errorText}`,
-        };
-      }
-
-      const profileData = await response.json();
+        },
+        undefined,
+        authToken,
+      );
 
       console.log("✅ [Tool:createUserProfile] Perfil criado com sucesso!");
 
@@ -213,10 +146,24 @@ export const createUserProfileTool = createTool({
         },
       };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
       console.error("❌ [Tool:createUserProfile] Erro:", error);
+
+      // Se já existe, retorna com flag especial
+      if (errorMessage.includes("já existe")) {
+        return {
+          success: false,
+          already_exists: true,
+          user_id: userId,
+          message:
+            "❌ PERFIL JÁ EXISTE. O usuário já tem um perfil cadastrado. NÃO tente criar novamente. Se precisar atualizar dados, sugira ao usuário fazer manualmente ou use outro fluxo.",
+        };
+      }
+
       return {
         success: false,
-        message: `Erro ao criar perfil: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+        message: `Erro ao criar perfil: ${errorMessage}`,
       };
     }
   },

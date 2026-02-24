@@ -998,6 +998,41 @@ export const deleteMealPlan = async (
   console.log(`✅ [CatalogClient] Plano deletado`);
 };
 
+export interface CreateUserProfileRequest {
+  user_id: string;
+  name: string;
+  age: number;
+  weight_kg?: number;
+  height_cm?: number;
+  activity_level?: string;
+  diet_goal?: string;
+  dietary_restrictions?: string[];
+  allergies?: string[];
+  disliked_foods?: string[];
+  preferred_cuisines?: string[];
+}
+
+export const createUserProfile = async (
+  request: CreateUserProfileRequest,
+  config = defaultConfig,
+  authToken?: string,
+): Promise<UserProfile> => {
+  console.log(
+    `👤 [CatalogClient] Criando perfil para usuário: ${request.user_id}`,
+  );
+
+  const response = await postRequest<UserProfile>(
+    "/api/v1/users/profiles",
+    request,
+    config,
+    authToken,
+  );
+
+  console.log(`✅ [CatalogClient] Perfil criado: ${response.user_id}`);
+
+  return response;
+};
+
 /**
  * Verifica se a API está disponível
  */
