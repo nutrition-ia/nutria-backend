@@ -27,7 +27,9 @@ import { getMealPlanTool } from "../tools/get-meal-plan";
 import { updateMealPlanTool } from "../tools/update-meal-plan";
 import { deleteMealPlanTool } from "../tools/delete-meal-plan";
 import { analyzeFoodImageTool } from "../tools/analyze-food-image";
+import { analyzeFoodImageDeticTool } from "../tools/analyze-food-image-detic";
 import { confirmAndLogImageMealTool } from "../tools/confirm-and-log-image-meal";
+import { calculateMacrosTool } from "../tools/calculate-macros";
 
 /**
  * Helper para converter ferramentas do Mastra para o formato AI SDK.
@@ -71,6 +73,7 @@ export function createNutritionAnalystAgent() {
     tools: {
       searchFoodCatalog: convertMastraToolToAISDK(searchFoodCatalogTool),
       calculateNutrition: convertMastraToolToAISDK(calculateNutritionTool),
+      calculateMacros: convertMastraToolToAISDK(calculateMacrosTool),
       findSimilarFoods: convertMastraToolToAISDK(findSimilarFoodsTool),
       recommendation: convertMastraToolToAISDK(recommendationTool),
       logMeal: convertMastraToolToAISDK(logMealTool),
@@ -83,6 +86,7 @@ export function createNutritionAnalystAgent() {
       updateMealPlan: convertMastraToolToAISDK(updateMealPlanTool),
       deleteMealPlan: convertMastraToolToAISDK(deleteMealPlanTool),
       analyzeFoodImage: convertMastraToolToAISDK(analyzeFoodImageTool),
+      analyzeFoodImageDetic: convertMastraToolToAISDK(analyzeFoodImageDeticTool),
       confirmAndLogImageMeal: convertMastraToolToAISDK(
         confirmAndLogImageMealTool,
       ),

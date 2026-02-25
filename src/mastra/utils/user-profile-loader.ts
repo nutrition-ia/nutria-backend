@@ -148,81 +148,10 @@ export function getCacheStats() {
 }
 
 /**
- * EXEMPLO DE USO: Como usar o agente com user_profile + memory
+ * NOTA: Exemplos de uso removidos.
  *
- * Este exemplo mostra a abordagem híbrida completa:
- * 1. Carrega user_profile oficial do banco
- * 2. Converte para contexto do agente
- * 3. Usa memory (message history + semantic recall + working memory)
+ * A API do Mastra mudou na versão 1.4.0:
+ * - resourceId e threadId não são mais passados diretamente
+ * - Use requestContext ao invés disso
+ * - Veja src/mastra/index.ts para exemplo atualizado
  */
-export async function exampleUsageWithUserProfile() {
-  const { nutritionAnalystAgent } = await import("../agents/nutrition-analyst");
-
-  const userId = "user-123";
-  const userMessage = "O que posso comer no jantar hoje?";
-
-  // 1. Busca perfil oficial do banco
-  const userProfile = await getUserProfileFromDB(userId);
-
-  if (!userProfile) {
-    throw new Error("User profile not found");
-  }
-
-  // 2. Converte perfil para contexto
-  const profileContext = userProfileToContext(userProfile);
-
-  // 3. Chama agente com tudo configurado
-  const response = await nutritionAnalystAgent.generate(userMessage, {
-    // Memory (automático):
-    // - Message history: últimas 15 mensagens
-    // - Semantic recall: busca em histórico
-    // - Working memory: aprendizados do agente
-    resourceId: userId,
-    threadId: `nutrition-thread-${userId}`,
-
-    // Contexto adicional: perfil oficial do banco
-    context: [profileContext],
-  });
-
-  return response;
-}
-
-/**
- * EXEMPLO DE USO NO ENDPOINT
- *
- * Como integrar no seu endpoint /chat
- */
-export async function exampleChatEndpoint() {
-  const exampleHandler = async (c: any) => {
-    const { messages } = await c.req.json();
-    const userId = c.req.header("X-User-Id");
-
-    if (!userId) {
-      return c.json({ error: "User ID required" }, 401);
-    }
-
-    // 1. Busca perfil do banco
-    const userProfile = await getUserProfileFromDB(userId);
-
-    if (!userProfile) {
-      return c.json({ error: "User profile not found" }, 404);
-    }
-
-    // 2. Converte para contexto
-    const profileContext = userProfileToContext(userProfile);
-
-    // 3. Usa o agente com memory + context
-    const { nutritionAnalystAgent } = await import("../agents/nutrition-analyst");
-
-    const stream = await nutritionAnalystAgent.stream(messages, {
-      format: 'aisdk',
-      resourceId: userId,
-      threadId: `nutrition-${userId}`,
-      context: [profileContext],
-    });
-
-    return stream.toUIMessageStreamResponse();
-  };
-
-  return exampleHandler;
-}
