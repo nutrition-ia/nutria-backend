@@ -13,6 +13,10 @@ import { updateMealPlanTool } from "../tools/update-meal-plan";
 import { deleteMealPlanTool } from "../tools/delete-meal-plan";
 import { analyzeFoodImageDeticTool } from "../tools/analyze-food-image-detic";
 import { confirmAndLogImageMealTool } from "../tools/confirm-and-log-image-meal";
+import { createUserProfileTool } from "../tools/create-user-profile";
+import { updateUserProfileTool } from "../tools/update-user-profile";
+import { calculateMacrosTool } from "../tools/calculate-macros";
+import { exportMealPlanPdfTool } from "../tools/export-meal-plan-pdf";
 
 export const toolSearch = new ToolSearchProcessor({
   tools: {
@@ -30,9 +34,14 @@ export const toolSearch = new ToolSearchProcessor({
     deleteMealPlanTool,
     analyzeFoodImageDeticTool,
     confirmAndLogImageMealTool,
+    createUserProfileTool,
+    updateUserProfileTool,
+    calculateMacrosTool,
+    exportMealPlanPdfTool,
   },
   search: {
     topK: 5,
     minScore: 0.1,
   },
 });
+
