@@ -11,7 +11,8 @@ import { listMealPlansTool } from "../tools/list-meal-plans";
 import { getMealPlanTool } from "../tools/get-meal-plan";
 import { updateMealPlanTool } from "../tools/update-meal-plan";
 import { deleteMealPlanTool } from "../tools/delete-meal-plan";
-import { analyzeFoodImageDeticTool } from "../tools/analyze-food-image-detic";
+// DETIC tool mantida no código mas removida do MVP (requer GPU)
+// import { analyzeFoodImageDeticTool } from "../tools/analyze-food-image-detic";
 import { confirmAndLogImageMealTool } from "../tools/confirm-and-log-image-meal";
 import { createUserProfileTool } from "../tools/create-user-profile";
 import { updateUserProfileTool } from "../tools/update-user-profile";
@@ -32,7 +33,7 @@ export const toolSearch = new ToolSearchProcessor({
     getMealPlanTool,
     updateMealPlanTool,
     deleteMealPlanTool,
-    analyzeFoodImageDeticTool,
+    // analyzeFoodImageDeticTool, // MVP: agente usa visão nativa do LLM
     confirmAndLogImageMealTool,
     createUserProfileTool,
     updateUserProfileTool,

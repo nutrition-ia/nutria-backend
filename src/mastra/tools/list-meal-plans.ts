@@ -1,7 +1,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { listMealPlans } from "../clients/catalog-client";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const listMealPlansToolInput = z.object({
   page: z.number().int().min(1).default(1).describe("Número da página"),
@@ -39,14 +40,7 @@ export const listMealPlansTool = createTool({
   execute: async (inputData, executionContext) => {
     const { page = 1, page_size = 10 } = inputData;
 
-    // Resolve user ID and JWT from execution context
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     if (userId === "anonymous") {
       throw new Error(
@@ -54,7 +48,7 @@ export const listMealPlansTool = createTool({
       );
     }
 
-    console.log(
+    logger.info(
       `📋 [Tool:listMealPlans] Listando planos para usuário: ${userId}`,
     );
 
@@ -75,7 +69,7 @@ export const listMealPlansTool = createTool({
         created_at: p.created_at,
       }));
 
-      console.log(`✅ [Tool:listMealPlans] Encontrados ${result.total} planos`);
+      logger.info(`✅ [Tool:listMealPlans] Encontrados ${result.total} planos`);
 
       return {
         plans,
@@ -88,7 +82,7 @@ export const listMealPlansTool = createTool({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:listMealPlans] Erro: ${errorMessage}`);
+      logger.error(`❌ [Tool:listMealPlans] Erro: ${errorMessage}`);
 
       throw new Error(`Erro ao listar planos: ${errorMessage}`);
     }

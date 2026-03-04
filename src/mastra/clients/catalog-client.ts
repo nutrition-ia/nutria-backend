@@ -1005,6 +1005,7 @@ export interface CreateUserProfileRequest {
   age: number;
   weight_kg?: number;
   height_cm?: number;
+  gender?: string;
   activity_level?: string;
   diet_goal?: string;
   dietary_restrictions?: string[];
@@ -1032,6 +1033,44 @@ export const createUserProfile = async (
   console.log(`✅ [CatalogClient] Perfil criado: ${response.user_id}`);
 
   return response;
+};
+
+export interface UpdateUserProfileRequest {
+  weight_kg?: number;
+  height_cm?: number;
+  age?: number;
+  gender?: string;
+  activity_level?: string;
+  diet_goal?: string;
+  dietary_restrictions?: string[];
+  allergies?: string[];
+  disliked_foods?: string[];
+  preferred_cuisines?: string[];
+}
+
+export const updateUserProfile = async (
+  request: UpdateUserProfileRequest,
+  config = defaultConfig,
+  authToken?: string,
+): Promise<UserProfile> => {
+  console.log(`✏️ [CatalogClient] Atualizando perfil do usuário`);
+
+  const url = `${config.baseUrl}/api/v1/users/profiles/me`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
+  const result = await executeRequest<UserProfile>(
+    url,
+    { method: "PUT", body: JSON.stringify(request), headers },
+    config.timeout,
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  console.log(`✅ [CatalogClient] Perfil atualizado`);
+  return result.data;
 };
 
 export interface AnalyzeImageRequest {

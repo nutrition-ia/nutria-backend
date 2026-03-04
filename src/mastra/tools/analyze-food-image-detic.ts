@@ -10,6 +10,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { analyzeImageWithDetic } from "../clients/catalog-client";
 import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const analyzeFoodImageDeticToolInput = z.object({
   image_base64: z
@@ -94,14 +95,14 @@ export const analyzeFoodImageDeticTool = createTool({
       additional_context,
     } = inputData;
 
-    const { authToken } = extractAuthContext(executionContext);
+    const { userId, authToken } = extractAuthContext(executionContext);
 
-    console.log("📸 [Tool:analyzeFoodImageDetic] Analisando imagem com DETIC...");
-    console.log(`   Top-k per food: ${top_k_per_food}`);
-    console.log(`   Confidence threshold: ${confidence_threshold}`);
+    logger.info("📸 [Tool:analyzeFoodImageDetic] Analisando imagem com DETIC...");
+    logger.info(`   Top-k per food: ${top_k_per_food}`);
+    logger.info(`   Confidence threshold: ${confidence_threshold}`);
 
     if (additional_context) {
-      console.log(`   Contexto adicional: ${additional_context}`);
+      logger.info(`   Contexto adicional: ${additional_context}`);
     }
 
     try {
@@ -111,13 +112,13 @@ export const analyzeFoodImageDeticTool = createTool({
         authToken,
       );
 
-      console.log(
+      logger.info(
         `✅ [Tool:analyzeFoodImageDetic] Análise concluída: ${result.total_detected} alimento(s) detectado(s), ${result.total_catalog_matches} match(es) no catálogo`
       );
 
       // Log dos alimentos detectados
       if (result.detected_foods && result.detected_foods.length > 0) {
-        console.log(`   Alimentos detectados: ${result.detected_foods.join(", ")}`);
+        logger.info(`   Alimentos detectados: ${result.detected_foods.join(", ")}`);
       }
 
       return result;
@@ -125,7 +126,7 @@ export const analyzeFoodImageDeticTool = createTool({
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
 
-      console.error(
+      logger.error(
         `❌ [Tool:analyzeFoodImageDetic] Erro ao chamar DETIC: ${errorMessage}`
       );
 

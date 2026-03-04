@@ -6,6 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { logMeal } from "../clients/catalog-client";
 import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const logMealToolInput = z.object({
   // user_id é obtido automaticamente do contexto (resourceId)
@@ -48,8 +49,8 @@ export const logMealTool = createTool({
 
     const { userId, authToken } = extractAuthContext(executionContext);
 
-    console.log("🍽️ [Tool:logMeal] Registrando refeição para usuário:", userId);
-    console.log("Dados:", { meal_type, num_foods: foods.length });
+    logger.info(`🍽️ [Tool:logMeal] Registrando refeição para usuário: ${userId}`);
+    logger.info(`   Tipo: ${meal_type}, Alimentos: ${foods.length}`);
 
     try {
       const result = await logMeal(
@@ -73,7 +74,7 @@ export const logMealTool = createTool({
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:logMeal] Erro: ${msg}`);
+      logger.error(`❌ [Tool:logMeal] Erro: ${msg}`);
       return {
         id: "",
         total_calories: 0,

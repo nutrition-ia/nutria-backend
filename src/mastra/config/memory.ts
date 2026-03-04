@@ -59,33 +59,10 @@ export function createNutritionMemory() {
       //   scope: "resource",
       // },
 
-      // 3️⃣ WORKING MEMORY: Aprendizados dinâmicos do agente
+      // 3️⃣ WORKING MEMORY: Desabilitado - causava loops de updateWorkingMemory
+      // O perfil do usuário já é injetado via user-profile-loader como contexto fixo
       workingMemory: {
-        enabled: true,
-        scope: "resource",    // Persiste por usuário (não por thread)
-        template: `# Contexto Dinâmico do Usuário
-
-## Preferências Alimentares Observadas
-- Horários preferidos para refeições:
-- Alimentos favoritos não listados no perfil:
-- Substitutos que o usuário prefere:
-- Preparos que costuma fazer:
-
-## Padrões e Hábitos Identificados
-- Dificuldades recorrentes:
-- Progressos notados:
-- Tendências de consumo:
-
-## Contexto Temporário Importante
-- Situação atual (ex: viajando, sem cozinha, etc):
-- Metas de curto prazo mencionadas:
-- Refeições planejadas para hoje/semana:
-
-## Observações e Insights
-- Preferências não-oficiais descobertas:
-- Dicas que funcionaram bem:
-- Ajustes sugeridos que o usuário aprovou:
-`,
+        enabled: false,
       },
     },
 

@@ -9,6 +9,7 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { PinoLogger } from "@mastra/loggers";
 import { nutritionAnalystAgent } from "./agents/nutrition-analyst";
 import { verifyJwt, extractBearerToken } from "../lib/jwt-auth";
+import { asyncContext } from "../lib/async-context";
 import { getUserProfileFromDB } from "./utils/user-profile-loader";
 import { userProfileToContext } from "../mastra/config/memory";
 import { sharedStorage } from "./config/storage";
@@ -102,32 +103,40 @@ export const mastra = new Mastra({
             requestContext.set(MASTRA_THREAD_ID_KEY, `chat-${userId}`);
             requestContext.set("jwt_token", token);
 
-            const mastra = c.get("mastra");
-            const nutritionAgent = mastra.getAgent("nutritionAnalystAgent");
+            // AsyncLocalStorage garante que userId/JWT propagam para as tools
+            // mesmo quando o requestContext do Mastra não é repassado internamente
+            return asyncContext.run(
+              { userId, jwtToken: token },
+              async () => {
+                const mastra = c.get("mastra");
+                const nutritionAgent =
+                  mastra.getAgent("nutritionAnalystAgent");
 
-            if (!nutritionAgent) {
-              return c.json({ error: "Agent não encontrado" }, 500);
-            }
-
-            const result = await nutritionAgent.stream(messages, {
-              context: contextMessages,
-              requestContext,
-            });
-
-            const uiMessageStream = createUIMessageStream({
-              originalMessages: messages,
-              execute: async ({ writer }) => {
-                for await (const part of toAISdkStream(result, {
-                  from: "agent",
-                })) {
-                  await writer.write(part);
+                if (!nutritionAgent) {
+                  return c.json({ error: "Agent não encontrado" }, 500);
                 }
-              },
-            });
 
-            return createUIMessageStreamResponse({
-              stream: uiMessageStream,
-            });
+                const result = await nutritionAgent.stream(messages, {
+                  context: contextMessages,
+                  requestContext,
+                });
+
+                const uiMessageStream = createUIMessageStream({
+                  originalMessages: messages,
+                  execute: async ({ writer }) => {
+                    for await (const part of toAISdkStream(result, {
+                      from: "agent",
+                    })) {
+                      await writer.write(part);
+                    }
+                  },
+                });
+
+                return createUIMessageStreamResponse({
+                  stream: uiMessageStream,
+                });
+              },
+            );
           } catch (error) {
             console.error("❌ Erro no endpoint /chat:", error);
             return c.json(
