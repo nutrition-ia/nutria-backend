@@ -1,11 +1,12 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 import {
   calculateNutrition,
   type NutritionDetail,
-} from '../clients/catalog-client';
-import { calculateNutritionOutputSchema } from '../schemas/output';
-import { logger } from '../../utils/logger';
+} from "../clients/catalog-client";
+import { calculateNutritionOutputSchema } from "../schemas/output";
+import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 /**
  * Transforma NutritionDetail da API para formato da tool
@@ -25,33 +26,36 @@ const formatNutritionDetail = (detail: NutritionDetail) => ({
  * Conecta com a Food Catalog API (FastAPI)
  */
 export const calculateNutritionTool = createTool({
-  id: 'calculate-nutrition',
+  id: "calculate-nutrition",
   description:
-    'Calcula valores nutricionais totais para uma lista de alimentos com quantidades específicas',
+    "Utilize essa tool exclusivamente para calculo de alimentos" +
+    "Não utilize essa tool para calculo nutricional de macros do usuário, ao inves disso, utilize a tool calculate-macros" +
+    "Calcula valores nutricionais totais para uma lista de alimentos com quantidades específicas",
   inputSchema: z.object({
     foods: z
       .array(
         z.object({
-          foodId: z.string().describe('ID do alimento no catálogo'),
-          quantity_g: z.number().describe('Quantidade em gramas'),
-        })
+          foodId: z.string().describe("ID do alimento no catálogo"),
+          quantity_g: z.number().describe("Quantidade em gramas"),
+        }),
       )
-      .describe('Lista de alimentos com quantidades'),
+      .describe("Lista de alimentos com quantidades"),
   }),
   outputSchema: calculateNutritionOutputSchema,
-  execute: async (inputData) => {
+  execute: async (inputData, executionContext) => {
     const { foods } = inputData;
+    const { authToken } = extractAuthContext(executionContext);
 
     logger.info(`🧮 [Tool] Calculando nutrição para ${foods.length} alimentos`);
 
     try {
       // Transforma formato da tool para formato da API
-      const apiRequest = foods.map(f => ({
+      const apiRequest = foods.map((f) => ({
         food_id: f.foodId,
         quantity: f.quantity_g,
       }));
 
-      const response = await calculateNutrition(apiRequest);
+      const response = await calculateNutrition(apiRequest, undefined, authToken);
 
       const details = response.details.map(formatNutritionDetail);
 
@@ -69,7 +73,7 @@ export const calculateNutritionTool = createTool({
       };
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido';
+        error instanceof Error ? error.message : "Erro desconhecido";
 
       logger.error(`❌ [Tool] Erro no cálculo: ${errorMessage}`);
 

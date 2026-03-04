@@ -6,6 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getDailySummary } from "../clients/catalog-client";
 import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const getDailySummaryToolInput = z.object({
   // user_id é obtido automaticamente do contexto (resourceId)
@@ -65,11 +66,7 @@ export const getDailySummaryTool = createTool({
 
     const { userId, authToken } = extractAuthContext(executionContext);
 
-    console.log(
-      "📈 [Tool:getDailySummary] Obtendo resumo para usuário:",
-      userId,
-    );
-    console.log("Data:", date || "hoje");
+    logger.info(`📈 [Tool:getDailySummary] Obtendo resumo para usuário: ${userId} (data: ${date || "hoje"})`);
 
     try {
       const result = await getDailySummary(userId, date, undefined, authToken);
@@ -90,7 +87,7 @@ export const getDailySummaryTool = createTool({
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:getDailySummary] Erro: ${msg}`);
+      logger.error(`❌ [Tool:getDailySummary] Erro: ${msg}`);
       return {
         date: date || new Date().toISOString().split("T")[0],
         num_meals: 0,

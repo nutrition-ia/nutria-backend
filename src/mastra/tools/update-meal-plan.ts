@@ -1,7 +1,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { updateMealPlan } from "../clients/catalog-client";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const updateMealPlanToolInput = z.object({
   plan_id: z.string().describe("ID do plano a atualizar"),
@@ -53,14 +54,7 @@ export const updateMealPlanTool = createTool({
   execute: async (inputData, executionContext) => {
     const { plan_id, ...updates } = inputData;
 
-    // Resolve user ID and JWT from execution context
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     if (userId === "anonymous") {
       throw new Error(
@@ -68,7 +62,7 @@ export const updateMealPlanTool = createTool({
       );
     }
 
-    console.log(
+    logger.info(
       `📋 [Tool:updateMealPlan] Atualizando plano ${plan_id} para usuário: ${userId}`,
     );
 
@@ -81,7 +75,7 @@ export const updateMealPlanTool = createTool({
         authToken,
       );
 
-      console.log(
+      logger.info(
         `✅ [Tool:updateMealPlan] Plano atualizado: "${result.plan_name}"`,
       );
 
@@ -94,7 +88,7 @@ export const updateMealPlanTool = createTool({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:updateMealPlan] Erro: ${errorMessage}`);
+      logger.error(`❌ [Tool:updateMealPlan] Erro: ${errorMessage}`);
 
       throw new Error(
         `Erro ao atualizar plano: ${errorMessage}. Verifique se o ID está correto e se você tem permissão para editar este plano.`,

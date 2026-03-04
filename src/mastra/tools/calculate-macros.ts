@@ -10,7 +10,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getUserProfileFromDB } from "../utils/user-profile-loader";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const calculateMacrosToolInput = z.object({
   override_weight_kg: z
@@ -30,7 +31,7 @@ const calculateMacrosToolInput = z.object({
     .optional()
     .describe("Idade (opcional, usa do perfil se não fornecido)"),
   override_gender: z
-    .enum(["male", "female"])
+    .enum(["male", "female", "non_binary"])
     .optional()
     .describe("Gênero (opcional, usa do perfil se não fornecido)"),
   override_activity_level: z
@@ -76,14 +77,16 @@ function calculateTMB(
   weight_kg: number,
   height_cm: number,
   age: number,
-  gender: string
+  gender: string,
 ): number {
   // Mifflin-St Jeor
   // Homens: TMB = 10 × peso(kg) + 6.25 × altura(cm) - 5 × idade + 5
   // Mulheres: TMB = 10 × peso(kg) + 6.25 × altura(cm) - 5 × idade - 161
 
   const base = 10 * weight_kg + 6.25 * height_cm - 5 * age;
-  const genderAdjustment = gender === "male" ? 5 : -161;
+  // non_binary usa média dos ajustes male (+5) e female (-161) = -78
+  const genderAdjustment =
+    gender === "male" ? 5 : gender === "non_binary" ? -78 : -161;
 
   return Math.round(base + genderAdjustment);
 }
@@ -122,7 +125,7 @@ function getCalorieAdjustment(diet_goal: string): number {
 function calculateMacros(
   daily_calories: number,
   weight_kg: number,
-  diet_goal: string
+  diet_goal: string,
 ): { protein_g: number; carbs_g: number; fat_g: number } {
   // Proteína: prioridade para preservar massa muscular
   let protein_g_per_kg = 1.6; // Padrão para manutenção
@@ -151,6 +154,8 @@ function calculateMacros(
 export const calculateMacrosTool = createTool({
   id: "calculate_macros",
   description:
+    "Utilize está tool quando o usuário perguntar quantas calorias ele terá que consumir" +
+    "Não utilize essa tool para calcular os alimentos, para calcular alimentos utilize calculate-nutrition" +
     "Calcula metas nutricionais (calorias e macros) baseado no perfil do usuário. " +
     "Usa fórmula de Mifflin-St Jeor para TMB e distribui macros otimizados por objetivo. " +
     "Use quando precisar calcular quantidades para um plano alimentar ou quando o usuário " +
@@ -168,15 +173,10 @@ export const calculateMacrosTool = createTool({
     } = inputData;
 
     // Resolve user ID from execution context
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
-
-    console.log(`🧮 [Tool:calculateMacros] Calculando macros para usuário: ${userId}`);
+    const { userId } = extractAuthContext(executionContext);
+    logger.info(
+      `🧮 [Tool:calculateMacros] Calculando macros para usuário: ${userId}`,
+    );
 
     try {
       // Carrega perfil do usuário (se não houver overrides)
@@ -199,7 +199,7 @@ export const calculateMacrosTool = createTool({
       ) {
         if (userId === "anonymous") {
           throw new Error(
-            "Dados insuficientes para calcular macros. Forneça peso, altura, idade, gênero, nível de atividade e objetivo, ou crie um perfil."
+            "Dados insuficientes para calcular macros. Forneça peso, altura, idade, gênero, nível de atividade e objetivo, ou crie um perfil.",
           );
         }
 
@@ -207,7 +207,7 @@ export const calculateMacrosTool = createTool({
 
         if (!profile) {
           throw new Error(
-            "Perfil não encontrado. Crie um perfil primeiro ou forneça todos os dados necessários."
+            "Perfil não encontrado. Crie um perfil primeiro ou forneça todos os dados necessários.",
           );
         }
 
@@ -215,55 +215,81 @@ export const calculateMacrosTool = createTool({
         weight_kg = weight_kg || profile.weight;
         height_cm = height_cm || profile.height;
         age = age || profile.age;
-        gender = gender || (profile.gender?.toLowerCase() as "male" | "female" | undefined);
+        gender =
+          gender ||
+          (profile.gender?.toLowerCase() as "male" | "female" | undefined);
         activity_level = activity_level || profile.activity_level;
         diet_goal = diet_goal || profile.goal;
       }
 
       // Valida que todos os dados necessários estão disponíveis
-      if (!weight_kg || !height_cm || !age || !gender || !activity_level || !diet_goal) {
+      if (
+        !weight_kg ||
+        !height_cm ||
+        !age ||
+        !gender ||
+        !activity_level ||
+        !diet_goal
+      ) {
+        const missingFields: string[] = [];
+        if (!weight_kg) missingFields.push("peso (override_weight_kg)");
+        if (!height_cm) missingFields.push("altura (override_height_cm)");
+        if (!age) missingFields.push("idade (override_age)");
+        if (!gender) missingFields.push("gênero (override_gender)");
+        if (!activity_level) missingFields.push("nível de atividade (override_activity_level)");
+        if (!diet_goal) missingFields.push("objetivo (override_diet_goal)");
         throw new Error(
-          "Dados incompletos no perfil. Atualize seu perfil ou forneça os dados manualmente."
+          `Dados incompletos para calcular macros. Campos faltando: ${missingFields.join(", ")}. ` +
+          `Peça ao usuário esses dados e chame a tool novamente usando os parâmetros override_* correspondentes.`,
         );
       }
 
       // Normaliza gender
-      if (!["male", "female"].includes(gender)) {
+      if (!["male", "female", "non_binary"].includes(gender)) {
         // Tenta mapear valores comuns
         if (gender.includes("masc") || gender.includes("homem")) {
           gender = "male";
         } else if (gender.includes("fem") || gender.includes("mulher")) {
           gender = "female";
+        } else if (
+          gender.includes("nb") ||
+          gender.includes("não binár") ||
+          gender.includes("nao binar") ||
+          gender.includes("non")
+        ) {
+          gender = "non_binary";
         } else {
           throw new Error(
-            `Gênero inválido: ${gender}. Use 'male' ou 'female'.`
+            `Gênero inválido: ${gender}. Use 'male', 'female' ou 'non_binary'.`,
           );
         }
       }
 
-      console.log(`   Perfil: ${weight_kg}kg, ${height_cm}cm, ${age} anos, ${gender}`);
-      console.log(`   Atividade: ${activity_level}, Objetivo: ${diet_goal}`);
+      logger.info(
+        `   Perfil: ${weight_kg}kg, ${height_cm}cm, ${age} anos, ${gender}`,
+      );
+      logger.info(`   Atividade: ${activity_level}, Objetivo: ${diet_goal}`);
 
       // 1. Calcula TMB (Taxa Metabólica Basal)
       const tmb = calculateTMB(weight_kg, height_cm, age, gender);
-      console.log(`   TMB: ${tmb} kcal/dia`);
+      logger.info(`   TMB: ${tmb} kcal/dia`);
 
       // 2. Calcula TDEE (Total Daily Energy Expenditure)
       const activityFactor = getActivityFactor(activity_level);
       const tdee = Math.round(tmb * activityFactor);
-      console.log(`   TDEE: ${tdee} kcal/dia (fator ${activityFactor})`);
+      logger.info(`   TDEE: ${tdee} kcal/dia (fator ${activityFactor})`);
 
       // 3. Aplica ajuste calórico baseado no objetivo
       const calorieAdjustment = getCalorieAdjustment(diet_goal);
       const daily_calories = tdee + calorieAdjustment;
-      console.log(
-        `   Calorias ajustadas: ${daily_calories} kcal/dia (${calorieAdjustment >= 0 ? "+" : ""}${calorieAdjustment})`
+      logger.info(
+        `   Calorias ajustadas: ${daily_calories} kcal/dia (${calorieAdjustment >= 0 ? "+" : ""}${calorieAdjustment})`,
       );
 
       // 4. Calcula distribuição de macros
       const macros = calculateMacros(daily_calories, weight_kg, diet_goal);
-      console.log(
-        `   Macros: ${macros.protein_g}g proteína, ${macros.carbs_g}g carbos, ${macros.fat_g}g gordura`
+      logger.info(
+        `   Macros: ${macros.protein_g}g proteína, ${macros.carbs_g}g carbos, ${macros.fat_g}g gordura`,
       );
 
       // 5. Cria explicação em português
@@ -282,7 +308,7 @@ export const calculateMacrosTool = createTool({
       };
 
       const explanation = `
-Baseado no seu perfil (${weight_kg}kg, ${height_cm}cm, ${age} anos, ${gender === "male" ? "masculino" : "feminino"}):
+Baseado no seu perfil (${weight_kg}kg, ${height_cm}cm, ${age} anos, ${gender === "male" ? "masculino" : gender === "non_binary" ? "não binário" : "feminino"}):
 
 📊 **Cálculos Nutricionais**
 • TMB (metabolismo basal): ${tmb} kcal/dia
@@ -297,7 +323,7 @@ Baseado no seu perfil (${weight_kg}kg, ${height_cm}cm, ${age} anos, ${gender ===
 💡 **Nota**: Estes valores são estimativas. Ajuste conforme necessário baseado nos resultados.
 `.trim();
 
-      console.log(`✅ [Tool:calculateMacros] Cálculo concluído com sucesso`);
+      logger.info(`✅ [Tool:calculateMacros] Cálculo concluído com sucesso`);
 
       return {
         success: true,
@@ -322,7 +348,7 @@ Baseado no seu perfil (${weight_kg}kg, ${height_cm}cm, ${age} anos, ${gender ===
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:calculateMacros] Erro: ${errorMessage}`);
+      logger.error(`❌ [Tool:calculateMacros] Erro: ${errorMessage}`);
 
       throw new Error(`Erro ao calcular macros: ${errorMessage}`);
     }

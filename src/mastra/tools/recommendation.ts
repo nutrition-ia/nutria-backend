@@ -1,12 +1,13 @@
 import { createTool } from "@mastra/core/tools";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
 import { z } from "zod";
 import {
+  defaultConfig,
   getRecommendations,
   type RecommendedFoodItem,
 } from "../clients/catalog-client";
 import { recommendationOutputSchema } from "../schemas/output";
 import { logger } from "../../utils/logger";
+import { extractAuthContext } from "../utils/auth-context";
 
 /**
  * Transforma RecommendedFoodItem da API para formato da tool
@@ -55,14 +56,7 @@ export const recommendationTool = createTool({
     const { limit = 20, category } = inputData;
 
     // Pega user_id e JWT do requestContext (definido no endpoint /chat)
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
-
+    const { userId, authToken } = extractAuthContext(executionContext);
     logger.info(
       `🎯 [Tool] Buscando recomendações para usuário: "${userId}"${category ? ` (categoria: ${category})` : ""}`,
     );
@@ -74,7 +68,7 @@ export const recommendationTool = createTool({
           limit,
           ...(category && { category }),
         },
-        undefined,
+        defaultConfig,
         authToken,
       );
 

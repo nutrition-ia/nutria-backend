@@ -4,19 +4,24 @@
 
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { invalidateUserProfileCache } from "../utils/user-profile-loader";
+import {
+  getUserProfileFromDB,
+  invalidateUserProfileCache,
+} from "../utils/user-profile-loader";
 import { extractAuthContext } from "../utils/auth-context";
-import { createUserProfile } from "../clients/catalog-client";
+import { createUserProfile, defaultConfig } from "../clients/catalog-client";
+import { logger } from "../../utils/logger";
 
 const createUserProfileToolInput = z.object({
   name: z.string().describe("Nome do usuário"),
   age: z.number().int().min(1).max(120).describe("Idade do usuário"),
-  weight_kg: z.number().positive().optional().describe("Peso em kg (opcional)"),
-  height_cm: z
-    .number()
-    .positive()
-    .optional()
-    .describe("Altura em cm (opcional)"),
+  weight_kg: z.number().positive().describe("Peso em kg"),
+  height_cm: z.number().positive().describe("Altura em cm"),
+  gender: z
+    .enum(["male", "female", "non_binary"])
+    .describe(
+      "Gênero (male, female ou non_binary) - usado para cálculos nutricionais",
+    ),
   activity_level: z
     .enum(["sedentary", "light", "moderate", "active", "very_active"])
     .optional()
@@ -65,6 +70,7 @@ export const createUserProfileTool = createTool({
         age: z.number(),
         weight_kg: z.number().optional(),
         height_cm: z.number().optional(),
+        gender: z.string().optional(),
         activity_level: z.string().optional(),
         diet_goal: z.string().optional(),
         dietary_restrictions: z.array(z.string()),
@@ -80,6 +86,7 @@ export const createUserProfileTool = createTool({
       age,
       weight_kg,
       height_cm,
+      gender,
       activity_level,
       diet_goal,
       dietary_restrictions = [],
@@ -99,11 +106,33 @@ export const createUserProfileTool = createTool({
       };
     }
 
-    console.log(
-      "👤 [Tool:createUserProfile] Criando perfil para usuário:",
-      userId,
-    );
-    console.log("Dados:", { name, age, weight_kg, height_cm });
+    logger.info(`👤 [Tool:createUserProfile] Criando perfil para usuário: ${userId}`);
+
+    // Verifica se já existe perfil para este usuário
+    const existingProfile = await getUserProfileFromDB(userId);
+    if (existingProfile) {
+      logger.info(
+        `⚠️ [Tool:createUserProfile] Perfil já existe para ${userId}`,
+      );
+      return {
+        success: true,
+        user_id: userId,
+        message:
+          "O usuário já possui um perfil cadastrado. Use os dados existentes ou sugira atualizar o perfil.",
+        profile: {
+          name: existingProfile.name,
+          age: existingProfile.age ?? 0,
+          weight_kg: existingProfile.weight ?? undefined,
+          height_cm: existingProfile.height ?? undefined,
+          gender: existingProfile.gender,
+          activity_level: existingProfile.activity_level,
+          diet_goal: existingProfile.goal,
+          dietary_restrictions: existingProfile.restrictions,
+          allergies: existingProfile.allergies,
+          disliked_foods: existingProfile.dislikes,
+        },
+      };
+    }
 
     try {
       const profileData = await createUserProfile(
@@ -113,6 +142,7 @@ export const createUserProfileTool = createTool({
           age,
           weight_kg,
           height_cm,
+          gender,
           activity_level: activity_level || "moderate",
           diet_goal: diet_goal || "maintain",
           dietary_restrictions,
@@ -120,13 +150,11 @@ export const createUserProfileTool = createTool({
           disliked_foods,
           preferred_cuisines,
         },
-        undefined,
+        defaultConfig,
         authToken,
       );
 
-      console.log("✅ [Tool:createUserProfile] Perfil criado com sucesso!");
-
-      // Invalida o cache para garantir que o próximo acesso pegue o perfil atualizado
+      logger.info("✅ [Tool:createUserProfile] Perfil criado com sucesso!");
       invalidateUserProfileCache(userId);
 
       return {
@@ -136,8 +164,9 @@ export const createUserProfileTool = createTool({
         profile: {
           name: profileData.name,
           age: profileData.age,
-          weight_kg: profileData.weight_kg,
-          height_cm: profileData.height_cm,
+          weight_kg: profileData.weight_kg ?? undefined,
+          height_cm: profileData.height_cm ?? undefined,
+          gender: profileData.gender,
           activity_level: profileData.activity_level,
           diet_goal: profileData.diet_goal,
           dietary_restrictions: profileData.dietary_restrictions || [],
@@ -148,18 +177,7 @@ export const createUserProfileTool = createTool({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
-      console.error("❌ [Tool:createUserProfile] Erro:", error);
-
-      // Se já existe, retorna com flag especial
-      if (errorMessage.includes("já existe")) {
-        return {
-          success: false,
-          already_exists: true,
-          user_id: userId,
-          message:
-            "❌ PERFIL JÁ EXISTE. O usuário já tem um perfil cadastrado. NÃO tente criar novamente. Se precisar atualizar dados, sugira ao usuário fazer manualmente ou use outro fluxo.",
-        };
-      }
+      logger.error(`❌ [Tool:createUserProfile] Erro: ${error instanceof Error ? error.message : error}`);
 
       return {
         success: false,

@@ -1,7 +1,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { deleteMealPlan } from "../clients/catalog-client";
-import { MASTRA_RESOURCE_ID_KEY } from "@mastra/core/request-context";
+import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const deleteMealPlanToolInput = z.object({
   plan_id: z.string().describe("ID do plano a deletar"),
@@ -23,14 +24,7 @@ export const deleteMealPlanTool = createTool({
   execute: async (inputData, executionContext) => {
     const { plan_id } = inputData;
 
-    // Resolve user ID and JWT from execution context
-    const userId =
-      (executionContext?.requestContext?.get(
-        MASTRA_RESOURCE_ID_KEY,
-      ) as string) || "anonymous";
-    const authToken = executionContext?.requestContext?.get("jwt_token") as
-      | string
-      | undefined;
+    const { userId, authToken } = extractAuthContext(executionContext);
 
     if (userId === "anonymous") {
       throw new Error(
@@ -38,14 +32,14 @@ export const deleteMealPlanTool = createTool({
       );
     }
 
-    console.log(
+    logger.info(
       `📋 [Tool:deleteMealPlan] Deletando plano ${plan_id} para usuário: ${userId}`,
     );
 
     try {
       await deleteMealPlan(plan_id, userId, undefined, authToken);
 
-      console.log(`✅ [Tool:deleteMealPlan] Plano deletado com sucesso`);
+      logger.info(`✅ [Tool:deleteMealPlan] Plano deletado com sucesso`);
 
       return {
         success: true,
@@ -54,7 +48,7 @@ export const deleteMealPlanTool = createTool({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:deleteMealPlan] Erro: ${errorMessage}`);
+      logger.error(`❌ [Tool:deleteMealPlan] Erro: ${errorMessage}`);
 
       throw new Error(
         `Erro ao deletar plano: ${errorMessage}. Verifique se o ID está correto e se você tem permissão para deletar este plano.`,

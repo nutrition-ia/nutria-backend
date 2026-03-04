@@ -6,6 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { searchFoodsByEmbedding, logMeal } from "../clients/catalog-client";
 import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const confirmAndLogImageMealToolInput = z.object({
   meal_type: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Tipo"),
@@ -61,72 +62,77 @@ export const confirmAndLogImageMealTool = createTool({
       );
     }
 
-    console.log(
+    logger.info(
       `🍽️ [Tool:confirmAndLogImageMeal] Registrando refeição de imagem para: ${userId}`,
     );
-    console.log(`   Tipo: ${meal_type}, Alimentos: ${detected_foods.length}`);
+    logger.info(`   Tipo: ${meal_type}, Alimentos: ${detected_foods.length}`);
+
+    // Busca todos os alimentos em paralelo (cosine similarity)
+    const confirmedFoods = detected_foods.filter((f) => f.user_confirmed);
+    const skippedCount = detected_foods.length - confirmedFoods.length;
+    if (skippedCount > 0) {
+      logger.info(`   ⊘ Pulando ${skippedCount} alimento(s) não confirmados`);
+    }
+
+    logger.info(
+      `   🔎 Buscando ${confirmedFoods.length} alimento(s) em paralelo (semântica)...`,
+    );
+
+    const searchResults = await Promise.all(
+      confirmedFoods.map(async (food) => {
+        try {
+          const searchResult = await searchFoodsByEmbedding(
+            { query: food.food_name, limit: 1 },
+            undefined,
+            authToken,
+          );
+          return { food, searchResult, error: null };
+        } catch (error) {
+          return { food, searchResult: null, error };
+        }
+      }),
+    );
 
     const catalogMatches = [];
     const foodsToLog = [];
 
-    // Para cada alimento detectado, busca no catálogo
-    for (const food of detected_foods) {
-      if (!food.user_confirmed) {
-        console.log(
-          `   ⊘ Pulando '${food.food_name}' (não confirmado pelo usuário)`,
+    for (const { food, searchResult, error } of searchResults) {
+      const quantity = food.user_adjusted_quantity_g || food.quantity_g;
+
+      if (error) {
+        logger.error(
+          `   ❌ Erro ao buscar '${food.food_name}': ${error instanceof Error ? error.message : "Erro desconhecido"}`,
         );
         continue;
       }
 
-      const quantity = food.user_adjusted_quantity_g || food.quantity_g;
+      if (
+        searchResult?.similar_foods &&
+        searchResult.similar_foods.length > 0
+      ) {
+        const catalogFood = searchResult.similar_foods[0];
 
-      console.log(
-        `   🔎 Buscando '${food.food_name}' no catálogo (busca semântica)...`,
-      );
-
-      try {
-        // Busca semântica usando embeddings + cosine similarity
-        const searchResult = await searchFoodsByEmbedding(
-          {
-            query: food.food_name,
-            limit: 1,
-          },
-          undefined,
-          authToken,
+        logger.info(
+          `   ✓ Match: '${catalogFood.name}' (ID: ${catalogFood.id}, score: ${catalogFood.similarity_score})`,
         );
 
-        if (
-          searchResult.similar_foods &&
-          searchResult.similar_foods.length > 0
-        ) {
-          const catalogFood = searchResult.similar_foods[0];
-
-          console.log(
-            `   ✓ Match: '${catalogFood.name}' (ID: ${catalogFood.id}, score: ${catalogFood.similarity_score})`,
-          );
-
-          catalogMatches.push({
-            detected_name: food.food_name,
-            catalog_food: {
-              id: catalogFood.id,
-              name: catalogFood.name,
-              similarity: catalogFood.similarity_score,
-            },
-          });
-
-          foodsToLog.push({
-            food_id: catalogFood.id,
-            quantity_g: quantity,
+        catalogMatches.push({
+          detected_name: food.food_name,
+          catalog_food: {
+            id: catalogFood.id,
             name: catalogFood.name,
-          });
-        } else {
-          console.warn(
-            `   ⚠️ Nenhum match encontrado para '${food.food_name}'`,
-          );
-        }
-      } catch (error) {
-        console.error(
-          `   ❌ Erro ao buscar '${food.food_name}': ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+            similarity: catalogFood.similarity_score,
+          },
+        });
+
+        foodsToLog.push({
+          food_id: catalogFood.id,
+          quantity_g: quantity,
+          name: catalogFood.name,
+        });
+      } else {
+        logger.warn(
+          `   ⚠️ Nenhum match encontrado para '${food.food_name}'`,
         );
       }
     }
@@ -138,7 +144,7 @@ export const confirmAndLogImageMealTool = createTool({
     }
 
     // Registra a refeição completa
-    console.log(`   💾 Registrando ${foodsToLog.length} alimento(s)...`);
+    logger.info(`   💾 Registrando ${foodsToLog.length} alimento(s)...`);
 
     try {
       const mealLog = await logMeal(
@@ -152,7 +158,7 @@ export const confirmAndLogImageMealTool = createTool({
         authToken,
       );
 
-      console.log(
+      logger.info(
         `   ✅ Refeição registrada! ID: ${mealLog.id}, Calorias: ${mealLog.total_calories} kcal`,
       );
 
@@ -167,7 +173,7 @@ export const confirmAndLogImageMealTool = createTool({
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:confirmAndLogImageMeal] Erro ao registrar: ${msg}`);
+      logger.error(`❌ [Tool:confirmAndLogImageMeal] Erro ao registrar: ${msg}`);
       throw new Error(
         `Não foi possível registrar a refeição: ${msg}. Os alimentos foram identificados corretamente, mas houve um erro no registro.`,
       );

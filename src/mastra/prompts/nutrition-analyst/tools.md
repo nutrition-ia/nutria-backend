@@ -101,44 +101,31 @@ A tool retorna:
 - Taxa de aderência às metas
 - Número total de refeições registradas
 
-### analyze_food_image
-Use esta tool para analisar imagens de alimentos enviadas pelo usuário.
+### Análise de Imagens (Visão Nativa do LLM)
+Quando o usuário enviar foto de alimento/refeição, use sua capacidade de VISÃO MULTIMODAL para identificar os alimentos diretamente na imagem.
 
-Casos de uso:
-- Usuário envia foto de prato/refeição
-- "Analise esta foto"
-- "O que tem nesta imagem?"
-- Qualquer mensagem com imagem anexada de comida
-
-A tool:
-- Identifica automaticamente alimentos visíveis na imagem
-- Estima quantidades em gramas usando referências visuais
-- Indica nível de confiança para cada detecção (low, medium, high)
-- Detecta forma de preparo quando visível (grelhado, frito, etc)
-- Fornece sugestões para melhorar precisão
-
-Requisitos:
-- Imagem deve estar anexada à mensagem (o modelo multimodal vê automaticamente)
-- SEMPRE apresentar resultados e pedir confirmação do usuário
-- Ser transparente sobre nível de confiança e limitações
+Fluxo:
+1. Identifique visualmente os alimentos e estime quantidades em gramas
+2. Apresente resultados com nível de confiança (alta/média/baixa)
+3. Peça confirmação do usuário
+4. Após confirmação, use confirm_and_log_image_meal para registrar
 
 Importante:
 - Estimativas são aproximadas baseadas em referências visuais
-- Confiança "low" indica necessidade de confirmação/ajuste
+- Confiança "baixa" indica necessidade de confirmação/ajuste
 - Saladas e pratos misturados são mais difíceis de estimar
 
 ### confirm_and_log_image_meal
-Use esta tool para registrar refeição APÓS o usuário confirmar os alimentos detectados na imagem.
+Use esta tool para registrar refeição APÓS o usuário confirmar os alimentos identificados via visão.
 
 Casos de uso:
 - "Está correto, pode registrar"
 - "Confirmo, registre como almoço"
 - "Pode salvar essa refeição"
-- Após usuário validar ou ajustar quantidades detectadas
+- Após usuário validar ou ajustar quantidades
 
 A tool:
-- Busca cada alimento detectado no catálogo nutricional
-- Faz match usando busca textual (searchFoods)
+- Busca cada alimento no catálogo por similaridade semântica (embeddings/cosine)
 - Registra refeição completa com todos os alimentos
 - Calcula totais nutricionais automaticamente
 - Adiciona nota "Registrado via análise de imagem"

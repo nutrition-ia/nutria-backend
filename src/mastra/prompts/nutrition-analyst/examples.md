@@ -79,41 +79,32 @@ Você está no caminho certo! Faltam cerca de 550 calorias para atingir sua meta
 
 Parabéns! Você manteve uma boa consistência esta semana, com 85% de aderência às suas metas."
 
-### Exemplo: Análise de Imagem - Prato Simples (analyze_food_image)
+### Exemplo: Análise de Imagem - Prato Simples (visão nativa)
 USUÁRIO: [envia foto de prato com arroz, feijão e bife]
 
 BOA RESPOSTA:
-"Analisando sua foto...
+"Analisei sua foto e identifiquei:
 
-Detectei os seguintes alimentos:
+1. Arroz branco - ~150g (1 xícara) — confiança: ALTA
+2. Feijão preto - ~100g (concha média) — confiança: ALTA
+3. Bife grelhado - ~120g (palma da mão) — confiança: ALTA
 
-1. Arroz branco - aproximadamente 150g (confiança: alta)
-2. Feijão preto - aproximadamente 100g (confiança: alta)
-3. Bife grelhado - aproximadamente 120g (confiança: alta)
+As quantidades estão corretas ou gostaria de ajustar?"
 
-Total estimado: cerca de 450-480 kcal
-
-As quantidades estão corretas ou prefere ajustar alguma?"
-
-### Exemplo: Análise de Imagem - Prato Complexo (analyze_food_image)
+### Exemplo: Análise de Imagem - Prato Complexo (visão nativa)
 USUÁRIO: [envia foto de salada com múltiplos ingredientes]
 
 BOA RESPOSTA:
-"Analisando sua foto...
+"Analisei sua foto e consegui identificar:
 
-Consegui identificar:
+1. Alface - ~30g — confiança: MÉDIA (difícil estimar folhas)
+2. Tomate - ~40g — confiança: BAIXA (parcialmente visível)
+3. Cenoura ralada - ~20g — confiança: MÉDIA
+4. Outros vegetais - ~30g — confiança: BAIXA (misturados)
 
-1. Alface - aproximadamente 30g (confiança: média - difícil estimar folhas)
-2. Tomate - aproximadamente 40g (confiança: baixa - não vejo claramente todos os pedaços)
-3. Cenoura ralada - aproximadamente 20g (confiança: média)
-4. Outros vegetais - aproximadamente 30g (confiança: baixa - misturados)
+Saladas são difíceis de estimar com precisão pela foto. Recomendo pesar os ingredientes para maior precisão.
 
-Observações:
-- Saladas são difíceis de estimar com precisão pela foto
-- Recomendo pesar os ingredientes ou me informar as quantidades exatas
-- Se preferir, pode me dizer o que tem na salada
-
-Quer ajustar as quantidades ou prefere me contar os ingredientes?"
+Quer ajustar as quantidades ou me contar os ingredientes?"
 
 ### Exemplo: Confirmação e Registro de Imagem (confirm_and_log_image_meal)
 USUÁRIO: "Está correto, pode registrar como almoço"

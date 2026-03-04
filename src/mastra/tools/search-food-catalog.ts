@@ -1,22 +1,26 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { searchFoods, type FoodItem } from '../clients/catalog-client';
+import { searchFoodsByEmbedding, type SimilarFoodItem } from '../clients/catalog-client';
 import { searchFoodOutputSchema } from '../schemas/output';
+import { extractAuthContext } from '../utils/auth-context';
 import { logger } from '../../utils/logger';
 
 /**
- * Transforma FoodItem da API para formato da tool
+ * Transforma SimilarFoodItem da API para formato da tool
+ * API pode retornar strings (Decimal) — converte para number
  */
-const formatFoodItem = (food: FoodItem) => ({
+const toNum = (v: unknown): number => Number(v) || 0;
+
+const formatFoodItem = (food: SimilarFoodItem) => ({
   id: food.id,
   name: food.name,
   category: food.category ?? 'Sem categoria',
-  portion: `${food.serving_size_g}${food.serving_unit ?? 'g'}`,
+  portion: '100g',
   nutrition: {
-    calories: food.calorie_per_100g,
-    protein_g: food.protein_g_100g ?? 0,
-    carbs_g: food.carbs_g_100g ?? 0,
-    fat_g: food.fat_g_100g ?? 0,
+    calories: toNum(food.calorie_per_100g),
+    protein_g: toNum(food.protein_g_100g),
+    carbs_g: toNum(food.carbs_g_100g),
+    fat_g: toNum(food.fat_g_100g),
   },
 });
 
@@ -39,15 +43,16 @@ export const searchFoodCatalogTool = createTool({
       .describe('Número máximo de resultados (padrão: 5)'),
   }),
   outputSchema: searchFoodOutputSchema,
-  execute: async (inputData) => {
+  execute: async (inputData, executionContext) => {
     const { query, limit = 5 } = inputData;
+    const { authToken } = extractAuthContext(executionContext);
 
-    logger.info(`🔍 [Tool] Buscando alimentos: "${query}" (limite: ${limit})`);
+    logger.info(`🔍 [Tool] Buscando alimentos (semântica): "${query}" (limite: ${limit})`);
 
     try {
-      const response = await searchFoods({ query, limit });
+      const response = await searchFoodsByEmbedding({ query, limit }, undefined, authToken);
 
-      const foods = response.foods.map(formatFoodItem);
+      const foods = response.similar_foods.map(formatFoodItem);
 
       logger.info(`✅ [Tool] Encontrados ${foods.length} alimentos`);
 

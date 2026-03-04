@@ -6,6 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getWeeklyStats } from "../clients/catalog-client";
 import { extractAuthContext } from "../utils/auth-context";
+import { logger } from "../../utils/logger";
 
 const getWeeklyStatsToolInput = z.object({
   // user_id é obtido automaticamente do contexto (resourceId)
@@ -59,11 +60,7 @@ export const getWeeklyStatsTool = createTool({
 
     const { userId, authToken } = extractAuthContext(executionContext);
 
-    console.log(
-      "📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário:",
-      userId,
-    );
-    console.log("Dias:", days);
+    logger.info(`📊 [Tool:getWeeklyStats] Obtendo estatísticas para usuário: ${userId} (dias: ${days})`);
 
     try {
       const result = await getWeeklyStats(userId, days, undefined, authToken);
@@ -83,7 +80,7 @@ export const getWeeklyStatsTool = createTool({
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      console.error(`❌ [Tool:getWeeklyStats] Erro: ${msg}`);
+      logger.error(`❌ [Tool:getWeeklyStats] Erro: ${msg}`);
       return {
         user_id: userId,
         num_days: 0,
