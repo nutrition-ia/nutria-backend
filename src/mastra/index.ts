@@ -15,8 +15,11 @@ import { userProfileToContext } from "../mastra/config/memory";
 import { sharedStorage } from "./config/storage";
 import { getObservabilityConfig } from "./config/observabilityOptions";
 import { validateEnv } from "./config/env";
+import { auth } from "../lib/auth";
 
 validateEnv();
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 export const mastra = new Mastra({
   storage: sharedStorage,
@@ -30,7 +33,16 @@ export const mastra = new Mastra({
   }),
   observability: getObservabilityConfig(),
   server: {
+    cors: {
+      origin: [FRONTEND_URL],
+      credentials: true,
+      allowHeaders: ["Content-Type", "Authorization", "x-mastra-client-type"],
+    },
     apiRoutes: [
+      registerApiRoute("/auth/*", {
+        method: "ALL",
+        handler: async (c) => auth.handler(c.req.raw),
+      }),
       registerApiRoute("/chat", {
         method: "POST",
         handler: async (c) => {

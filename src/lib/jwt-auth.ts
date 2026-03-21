@@ -1,7 +1,7 @@
 import { jwtVerify, createRemoteJWKSet, type JWTPayload } from 'jose';
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const JWKS_URL = `${FRONTEND_URL}/api/auth/jwks`;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4111';
+const JWKS_URL = `${BACKEND_URL}/auth/jwks`;
 
 const JWKS = createRemoteJWKSet(new URL(JWKS_URL));
 
@@ -12,12 +12,11 @@ export interface NutriaJwtPayload extends JWTPayload {
 }
 
 /**
- * Verifica e decodifica um JWT usando as chaves públicas do JWKS do frontend.
- * A chave privada nunca sai do Next.js — aqui só validamos a assinatura.
+ * Verifica e decodifica um JWT usando as chaves públicas do JWKS do backend.
  */
 export async function verifyJwt(token: string): Promise<NutriaJwtPayload> {
   const { payload } = await jwtVerify(token, JWKS, {
-    issuer: FRONTEND_URL,
+    issuer: BACKEND_URL,
     audience: 'nutria',
   });
 
