@@ -45,10 +45,25 @@ export const env = {
   // ============================================
 
   /**
-   * URL do frontend (Next.js) onde o JWKS é exposto
-   * Usado para validar JWTs via /api/auth/jwks
+   * URL do frontend (Next.js)
    */
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
+
+  /**
+   * URL do backend (Mastra/Hono) onde o Better Auth roda
+   * Usado como issuer do JWT e base URL do JWKS
+   */
+  BACKEND_URL: process.env.BACKEND_URL || "http://localhost:4111",
+
+  /**
+   * Connection string do PostgreSQL (usado pelo Better Auth)
+   */
+  DATABASE_URL: process.env.DATABASE_URL || "",
+
+  /**
+   * Secret do Better Auth para assinar sessões
+   */
+  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET || "",
 
   // ============================================
   // LLM Configuration
